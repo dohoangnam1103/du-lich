@@ -7,16 +7,13 @@ const place = {
   name: "Quán Ngon",
   lat: 10,
   lng: 106,
-  rating: 4.3,
-  userRatingCount: 88,
   distanceMeters: 1234,
 };
 
 describe("PlaceCard", () => {
-  it("shows name, rating and human distance", () => {
+  it("shows name and human distance", () => {
     render(<PlaceCard place={place} />);
     expect(screen.getByText("Quán Ngon")).toBeInTheDocument();
-    expect(screen.getByText(/4.3/)).toBeInTheDocument();
     expect(screen.getByText(/1.2 km/)).toBeInTheDocument();
   });
 

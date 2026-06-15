@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { CATEGORIES, googleTypesForCategory, type Category } from "@/lib/places/types";
+import { CATEGORIES, osmTagsForCategory } from "@/lib/places/types";
 
-describe("googleTypesForCategory", () => {
-  it("maps food to restaurant-ish types", () => {
-    expect(googleTypesForCategory("food")).toContain("restaurant");
+describe("osmTagsForCategory", () => {
+  it("maps food to restaurant tags", () => {
+    expect(osmTagsForCategory("food")).toContainEqual(["amenity", "restaurant"]);
   });
-  it("maps cafe to cafe", () => {
-    expect(googleTypesForCategory("cafe")).toContain("cafe");
+  it("maps cafe to cafe tag", () => {
+    expect(osmTagsForCategory("cafe")).toContainEqual(["amenity", "cafe"]);
   });
-  it("maps fun to entertainment types", () => {
-    expect(googleTypesForCategory("fun")).toContain("amusement_park");
+  it("maps fun to leisure/tourism tags", () => {
+    expect(osmTagsForCategory("fun")).toContainEqual(["leisure", "park"]);
   });
-  it("maps sightseeing to tourist_attraction", () => {
-    expect(googleTypesForCategory("sightseeing")).toContain("tourist_attraction");
+  it("maps sightseeing to tourism/historic tags", () => {
+    expect(osmTagsForCategory("sightseeing")).toContainEqual(["tourism", "museum"]);
   });
   it("lists all four categories", () => {
     expect(CATEGORIES).toEqual(["food", "cafe", "fun", "sightseeing"]);

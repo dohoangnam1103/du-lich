@@ -25,7 +25,6 @@ const mockedDetail = vi.mocked(getPlaceDetail);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.GOOGLE_MAPS_API_KEY = "test-key";
 });
 
 function ctx(placeId: string) {
@@ -39,8 +38,7 @@ describe("GET /api/places/[placeId]", () => {
       name: "A",
       lat: 10,
       lng: 106,
-      reviews: [],
-      photoNames: [],
+      imageUrls: [],
     });
     const res = await GET(new Request("http://localhost/api/places/p1"), ctx("p1"));
     expect(res.status).toBe(200);

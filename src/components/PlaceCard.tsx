@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Place } from "@/lib/places/types";
+import type { Category, Place } from "@/lib/places/types";
 
 function formatDistance(m?: number): string {
   if (m == null) return "";
@@ -7,13 +7,32 @@ function formatDistance(m?: number): string {
   return `${(m / 1000).toFixed(1)} km`;
 }
 
-export function PlaceCard({ place }: { place: Place }) {
-  const photoSrc = place.photoName
-    ? `/api/places/photo?name=${encodeURIComponent(place.photoName)}&w=400`
-    : null;
+const CATEGORY_ICON: Record<Category, string> = {
+  food: "🍜",
+  cafe: "☕",
+  fun: "🎡",
+  sightseeing: "🏛️",
+};
+
+export function PlaceCard({
+  place,
+  userCoords,
+  category,
+}: {
+  place: Place;
+  userCoords?: { lat: number; lng: number };
+  category?: Category;
+}) {
+  const photoSrc = place.imageUrl ?? null;
+  const fallbackIcon = category ? CATEGORY_ICON[category] : "📍";
+
+  const query = userCoords
+    ? `?lat=${userCoords.lat}&lng=${userCoords.lng}`
+    : "";
+  const href = `/place/${encodeURIComponent(place.placeId)}${query}`;
 
   return (
-    <Link href={`/place/${place.placeId}`} style={{ textDecoration: "none", color: "inherit" }}>
+    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
       <div className="glass glass-edge" style={{ display: "flex", gap: 12, padding: 12, marginBottom: 12 }}>
         <div
           style={{
@@ -21,18 +40,21 @@ export function PlaceCard({ place }: { place: Place }) {
             height: 84,
             borderRadius: 16,
             flex: "0 0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 34,
             background: photoSrc ? `center/cover url(${photoSrc})` : "rgba(255,255,255,0.15)",
           }}
-        />
+        >
+          {!photoSrc && fallbackIcon}
+        </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 16 }}>{place.name}</div>
           <div style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 2 }}>
             {place.address}
           </div>
           <div style={{ marginTop: 6, fontSize: 13, display: "flex", gap: 12 }}>
-            {place.rating != null && (
-              <span>⭐ {place.rating} ({place.userRatingCount ?? 0})</span>
-            )}
             <span>📍 {formatDistance(place.distanceMeters)}</span>
           </div>
         </div>

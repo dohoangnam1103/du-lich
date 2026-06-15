@@ -4,6 +4,14 @@ vi.mock("@/lib/places/client", () => ({
   searchNearby: vi.fn(),
 }));
 
+vi.mock("@/db", () => ({
+  db: {
+    query: {
+      posts: { findMany: vi.fn().mockResolvedValue([]) },
+    },
+  },
+}));
+
 import { GET } from "@/app/api/places/nearby/route";
 import { searchNearby } from "@/lib/places/client";
 
@@ -15,7 +23,6 @@ function makeRequest(qs: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.GOOGLE_MAPS_API_KEY = "test-key";
 });
 
 describe("GET /api/places/nearby", () => {
@@ -39,7 +46,7 @@ describe("GET /api/places/nearby", () => {
     expect(body.places).toHaveLength(1);
     const arg = mockedSearch.mock.calls[0][0];
     expect(arg.radiusMeters).toBe(5000);
-    expect(arg.includedTypes).toContain("cafe");
+    expect(arg.tagFilters).toContainEqual(["amenity", "cafe"]);
   });
 
   it("500s when the client throws", async () => {

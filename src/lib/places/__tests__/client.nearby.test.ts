@@ -1,88 +1,105 @@
 import { describe, it, expect, vi } from "vitest";
 import { searchNearby } from "@/lib/places/client";
 
-function fakeFetch(jsonBody: unknown) {
-  return vi.fn(async (..._args: Parameters<typeof fetch>) =>
-    new Response(JSON.stringify(jsonBody), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    }),
-  );
+function overpassResponse(elements: unknown[]) {
+  return new Response(JSON.stringify({ elements }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 }
 
-const sampleResponse = {
-  places: [
-    {
-      id: "place_a",
-      displayName: { text: "Quán A" },
-      formattedAddress: "1 Đường A",
-      location: { latitude: 10.78, longitude: 106.69 },
-      rating: 4.5,
-      userRatingCount: 120,
-      photos: [{ name: "places/place_a/photos/xyz" }],
-    },
-  ],
-};
+const sampleElements = [
+  {
+    type: "node",
+    id: 1,
+    lat: 10.78,
+    lon: 106.69,
+    tags: { name: "Quán A", "addr:street": "Đường A" },
+  },
+];
 
 describe("searchNearby", () => {
-  it("normalizes Google response into Place[] and computes distance", async () => {
-    const fetchImpl = fakeFetch(sampleResponse);
+  it("normalizes Overpass response into Place[] and computes distance", async () => {
+    const fetchImpl = vi.fn(async () => overpassResponse(sampleElements));
     const places = await searchNearby(
-      { lat: 10.78, lng: 106.69, radiusMeters: 5000, includedTypes: ["restaurant"] },
-      { apiKey: "k", fetchImpl },
+      { lat: 10.78, lng: 106.69, radiusMeters: 5000, tagFilters: [["amenity", "restaurant"]] },
+      { fetchImpl },
     );
     expect(places).toHaveLength(1);
     expect(places[0]).toMatchObject({
-      placeId: "place_a",
+      placeId: "node/1",
       name: "Quán A",
-      rating: 4.5,
-      userRatingCount: 120,
-      photoName: "places/place_a/photos/xyz",
+      address: "Đường A",
     });
     expect(places[0].distanceMeters).toBe(0);
   });
 
   it("sorts results near to far", async () => {
-    const far = {
-      places: [
-        {
-          id: "far",
-          displayName: { text: "Far" },
-          location: { latitude: 10.9, longitude: 106.9 },
-        },
-        {
-          id: "near",
-          displayName: { text: "Near" },
-          location: { latitude: 10.781, longitude: 106.691 },
-        },
-      ],
-    };
+    const elements = [
+      { type: "node", id: 10, lat: 10.9, lon: 106.9, tags: { name: "Far" } },
+      { type: "node", id: 11, lat: 10.781, lon: 106.691, tags: { name: "Near" } },
+    ];
+    const fetchImpl = vi.fn(async () => overpassResponse(elements));
     const places = await searchNearby(
-      { lat: 10.78, lng: 106.69, radiusMeters: 50000, includedTypes: ["restaurant"] },
-      { apiKey: "k", fetchImpl: fakeFetch(far) },
+      { lat: 10.78, lng: 106.69, radiusMeters: 50000, tagFilters: [["amenity", "restaurant"]] },
+      { fetchImpl },
     );
-    expect(places.map((p) => p.placeId)).toEqual(["near", "far"]);
+    expect(places.map((p) => p.placeId)).toEqual(["node/11", "node/10"]);
   });
 
-  it("sends apiKey and field mask in headers", async () => {
-    const fetchImpl = fakeFetch(sampleResponse);
-    await searchNearby(
-      { lat: 10.78, lng: 106.69, radiusMeters: 5000, includedTypes: ["restaurant"] },
-      { apiKey: "secret", fetchImpl },
+  it("skips elements without a name", async () => {
+    const elements = [
+      { type: "node", id: 1, lat: 10.78, lon: 106.69, tags: { name: "Có tên" } },
+      { type: "node", id: 2, lat: 10.78, lon: 106.69, tags: { amenity: "restaurant" } },
+    ];
+    const fetchImpl = vi.fn(async () => overpassResponse(elements));
+    const places = await searchNearby(
+      { lat: 10.78, lng: 106.69, radiusMeters: 5000, tagFilters: [["amenity", "restaurant"]] },
+      { fetchImpl },
     );
-    const [, init] = fetchImpl.mock.calls[0];
-    const headers = init!.headers as Record<string, string>;
-    expect(headers["X-Goog-Api-Key"]).toBe("secret");
-    expect(headers["X-Goog-FieldMask"]).toContain("places.id");
+    expect(places).toHaveLength(1);
+    expect(places[0].name).toBe("Có tên");
+  });
+
+  it("attaches Wikipedia image when the POI has a wikipedia tag", async () => {
+    const elements = [
+      {
+        type: "node",
+        id: 1,
+        lat: 10.78,
+        lon: 106.69,
+        tags: { name: "Văn Miếu", wikipedia: "vi:Văn Miếu" },
+      },
+    ];
+    const fetchImpl = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
+      if (String(url).includes("wikipedia.org")) {
+        return new Response(
+          JSON.stringify({
+            query: {
+              pages: {
+                "1": { title: "Văn Miếu", thumbnail: { source: "https://img/vm.jpg" } },
+              },
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return overpassResponse(elements);
+    });
+    const places = await searchNearby(
+      { lat: 10.78, lng: 106.69, radiusMeters: 5000, tagFilters: [["tourism", "museum"]] },
+      { fetchImpl },
+    );
+    expect(places[0].imageUrl).toBe("https://img/vm.jpg");
   });
 
   it("throws on non-ok response", async () => {
-    const fetchImpl = vi.fn(async () => new Response("nope", { status: 403 }));
+    const fetchImpl = vi.fn(async () => new Response("nope", { status: 429 }));
     await expect(
       searchNearby(
-        { lat: 1, lng: 1, radiusMeters: 1000, includedTypes: ["restaurant"] },
-        { apiKey: "k", fetchImpl },
+        { lat: 1, lng: 1, radiusMeters: 1000, tagFilters: [["amenity", "restaurant"]] },
+        { fetchImpl },
       ),
-    ).rejects.toThrow(/places api/i);
+    ).rejects.toThrow(/overpass/i);
   });
 });

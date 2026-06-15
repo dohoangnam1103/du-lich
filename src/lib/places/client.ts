@@ -1,146 +1,244 @@
 import { haversineMeters } from "@/lib/geo";
-import type { Place, PlaceDetail, PlaceReview } from "./types";
+import type { Place, PlaceDetail } from "./types";
 
 type FetchImpl = typeof fetch;
 
 interface ClientOptions {
-  apiKey: string;
   fetchImpl?: FetchImpl;
+  overpassUrl?: string;
 }
 
 interface NearbyParams {
   lat: number;
   lng: number;
   radiusMeters: number;
-  includedTypes: string[];
+  tagFilters: [string, string][];
   maxResults?: number;
 }
 
-const NEARBY_FIELD_MASK = [
-  "places.id",
-  "places.displayName",
-  "places.formattedAddress",
-  "places.location",
-  "places.rating",
-  "places.userRatingCount",
-  "places.photos",
-].join(",");
+const DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+const OVERPASS_USER_AGENT = "dia-diem-du-lich/1.0 (https://dulich.hoangnam.cloud)";
+const WIKI_THUMB_SIZE = 800;
 
-interface GooglePlace {
-  id: string;
-  displayName?: { text: string };
-  formattedAddress?: string;
-  location?: { latitude: number; longitude: number };
-  rating?: number;
-  userRatingCount?: number;
-  photos?: { name: string }[];
+interface OverpassElement {
+  type: "node" | "way" | "relation";
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+}
+
+interface OverpassResponse {
+  elements?: OverpassElement[];
+}
+
+function elementCoords(el: OverpassElement): { lat: number; lng: number } {
+  const lat = el.lat ?? el.center?.lat ?? 0;
+  const lng = el.lon ?? el.center?.lon ?? 0;
+  return { lat, lng };
+}
+
+function buildAddress(tags: Record<string, string>): string | undefined {
+  const parts = [
+    tags["addr:housenumber"],
+    tags["addr:street"],
+    tags["addr:district"],
+    tags["addr:city"],
+  ].filter(Boolean);
+  return parts.length ? parts.join(", ") : undefined;
+}
+
+// Parses an OSM `wikipedia` tag (e.g. "vi:Văn Miếu") into { lang, title }.
+function parseWikipediaTag(tag: string): { lang: string; title: string } | null {
+  const idx = tag.indexOf(":");
+  if (idx <= 0) return null;
+  const lang = tag.slice(0, idx).trim();
+  const title = tag.slice(idx + 1).trim();
+  if (!lang || !title) return null;
+  return { lang, title };
+}
+
+// Fetches Wikipedia thumbnails, batching titles per language (the API accepts
+// up to 50 titles joined by "|"). Returns a map keyed by the raw "lang:title".
+async function fetchWikipediaImages(
+  rawTags: string[],
+  fetchImpl: FetchImpl,
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const byLang = new Map<string, Map<string, string>>(); // lang -> (title -> rawTag)
+
+  for (const raw of rawTags) {
+    const parsed = parseWikipediaTag(raw);
+    if (!parsed) continue;
+    let titles = byLang.get(parsed.lang);
+    if (!titles) {
+      titles = new Map();
+      byLang.set(parsed.lang, titles);
+    }
+    titles.set(parsed.title, raw);
+  }
+
+  await Promise.all(
+    [...byLang.entries()].map(async ([lang, titleMap]) => {
+      const titles = [...titleMap.keys()];
+      for (let i = 0; i < titles.length; i += 50) {
+        const batch = titles.slice(i, i + 50);
+        const url =
+          `https://${lang}.wikipedia.org/w/api.php` +
+          `?action=query&format=json&origin=*&prop=pageimages` +
+          `&pithumbsize=${WIKI_THUMB_SIZE}` +
+          `&titles=${encodeURIComponent(batch.join("|"))}`;
+        try {
+          const res = await fetchImpl(url);
+          if (!res.ok) continue;
+          const data = (await res.json()) as {
+            query?: {
+              pages?: Record<
+                string,
+                { title?: string; thumbnail?: { source?: string } }
+              >;
+            };
+          };
+          const pages = data.query?.pages ?? {};
+          for (const page of Object.values(pages)) {
+            const src = page.thumbnail?.source;
+            const title = page.title;
+            if (!src || !title) continue;
+            const raw = titleMap.get(title);
+            if (raw) result.set(raw, src);
+          }
+        } catch {
+          // Wikipedia is best-effort; skip on failure.
+        }
+      }
+    }),
+  );
+
+  return result;
+}
+
+function buildNearbyQuery(params: NearbyParams): string {
+  const clauses = params.tagFilters
+    .map(
+      ([k, v]) =>
+        `node["${k}"="${v}"](around:${params.radiusMeters},${params.lat},${params.lng});`,
+    )
+    .join("\n  ");
+  return `[out:json][timeout:25];\n(\n  ${clauses}\n);\nout center ${params.maxResults ?? 50};`;
 }
 
 export async function searchNearby(
   params: NearbyParams,
-  options: ClientOptions,
+  options: ClientOptions = {},
 ): Promise<Place[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const res = await fetchImpl("https://places.googleapis.com/v1/places:searchNearby", {
+  const overpassUrl = options.overpassUrl ?? DEFAULT_OVERPASS_URL;
+
+  const res = await fetchImpl(overpassUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": options.apiKey,
-      "X-Goog-FieldMask": NEARBY_FIELD_MASK,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": OVERPASS_USER_AGENT,
     },
-    body: JSON.stringify({
-      includedTypes: params.includedTypes,
-      maxResultCount: params.maxResults ?? 20,
-      locationRestriction: {
-        circle: {
-          center: { latitude: params.lat, longitude: params.lng },
-          radius: params.radiusMeters,
-        },
-      },
-    }),
+    body: `data=${encodeURIComponent(buildNearbyQuery(params))}`,
   });
 
   if (!res.ok) {
-    throw new Error(`Places API nearby failed: ${res.status}`);
+    throw new Error(`Overpass nearby failed: ${res.status}`);
   }
 
-  const data = (await res.json()) as { places?: GooglePlace[] };
-  const places: Place[] = (data.places ?? []).map((p) => {
-    const lat = p.location?.latitude ?? 0;
-    const lng = p.location?.longitude ?? 0;
+  const data = (await res.json()) as OverpassResponse;
+  const elements = (data.elements ?? []).filter((el) => el.tags?.name);
+
+  const places: Place[] = elements.map((el) => {
+    const { lat, lng } = elementCoords(el);
+    const tags = el.tags ?? {};
     return {
-      placeId: p.id,
-      name: p.displayName?.text ?? "(không tên)",
-      address: p.formattedAddress,
+      placeId: `${el.type}/${el.id}`,
+      name: tags.name,
+      address: buildAddress(tags),
       lat,
       lng,
-      rating: p.rating,
-      userRatingCount: p.userRatingCount,
-      photoName: p.photos?.[0]?.name,
       distanceMeters: haversineMeters(params.lat, params.lng, lat, lng),
     };
   });
+
+  const wikiTags = elements
+    .map((el) => el.tags?.wikipedia)
+    .filter((t): t is string => !!t);
+  if (wikiTags.length) {
+    const images = await fetchWikipediaImages(wikiTags, fetchImpl);
+    elements.forEach((el, i) => {
+      const tag = el.tags?.wikipedia;
+      if (tag) {
+        const url = images.get(tag);
+        if (url) places[i].imageUrl = url;
+      }
+    });
+  }
 
   places.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
   return places;
 }
 
-const DETAIL_FIELD_MASK = [
-  "id",
-  "displayName",
-  "formattedAddress",
-  "location",
-  "rating",
-  "userRatingCount",
-  "photos",
-  "reviews",
-].join(",");
-
-interface GoogleReview {
-  authorAttribution?: { displayName?: string; uri?: string };
-  rating?: number;
-  text?: { text?: string };
-  relativePublishTimeDescription?: string;
+function buildDetailQuery(placeId: string): string | null {
+  const slash = placeId.indexOf("/");
+  if (slash <= 0) return null;
+  const type = placeId.slice(0, slash);
+  const id = placeId.slice(slash + 1);
+  if (!/^(node|way|relation)$/.test(type) || !/^\d+$/.test(id)) return null;
+  return `[out:json][timeout:25];\n${type}(${id});\nout center 1;`;
 }
 
 export async function getPlaceDetail(
   placeId: string,
-  options: ClientOptions,
+  options: ClientOptions = {},
 ): Promise<PlaceDetail> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const res = await fetchImpl(`https://places.googleapis.com/v1/places/${placeId}`, {
-    method: "GET",
+  const overpassUrl = options.overpassUrl ?? DEFAULT_OVERPASS_URL;
+
+  const query = buildDetailQuery(placeId);
+  if (!query) {
+    throw new Error(`Invalid placeId: ${placeId}`);
+  }
+
+  const res = await fetchImpl(overpassUrl, {
+    method: "POST",
     headers: {
-      "X-Goog-Api-Key": options.apiKey,
-      "X-Goog-FieldMask": DETAIL_FIELD_MASK,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": OVERPASS_USER_AGENT,
     },
+    body: `data=${encodeURIComponent(query)}`,
   });
 
   if (!res.ok) {
-    throw new Error(`Places API detail failed: ${res.status}`);
+    throw new Error(`Overpass detail failed: ${res.status}`);
   }
 
-  const p = (await res.json()) as GooglePlace & { reviews?: GoogleReview[] };
-  const reviews: PlaceReview[] = (p.reviews ?? []).map((r) => ({
-    authorName: r.authorAttribution?.displayName ?? "Ẩn danh",
-    authorUri: r.authorAttribution?.uri,
-    rating: r.rating ?? 0,
-    text: r.text?.text,
-    relativeTime: r.relativePublishTimeDescription,
-  }));
+  const data = (await res.json()) as OverpassResponse;
+  const el = (data.elements ?? [])[0];
+  if (!el) {
+    throw new Error(`Place not found: ${placeId}`);
+  }
 
-  const lat = p.location?.latitude ?? 0;
-  const lng = p.location?.longitude ?? 0;
+  const { lat, lng } = elementCoords(el);
+  const tags = el.tags ?? {};
+
+  const imageUrls: string[] = [];
+  if (tags.wikipedia) {
+    const images = await fetchWikipediaImages([tags.wikipedia], fetchImpl);
+    const url = images.get(tags.wikipedia);
+    if (url) imageUrls.push(url);
+  }
+
   return {
-    placeId: p.id,
-    name: p.displayName?.text ?? "(không tên)",
-    address: p.formattedAddress,
+    placeId: `${el.type}/${el.id}`,
+    name: tags.name ?? "(không tên)",
+    address: buildAddress(tags),
     lat,
     lng,
-    rating: p.rating,
-    userRatingCount: p.userRatingCount,
-    photoName: p.photos?.[0]?.name,
-    photoNames: (p.photos ?? []).map((ph) => ph.name),
-    reviews,
+    imageUrl: imageUrls[0],
+    imageUrls,
   };
 }

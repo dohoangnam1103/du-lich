@@ -75,7 +75,7 @@ export default function Home() {
       )}
 
       {places.map((p) => (
-        <PlaceCard key={p.placeId} place={p} />
+        <PlaceCard key={p.placeId} place={p} userCoords={coords ?? undefined} category={category} />
       ))}
     </main>
   );

@@ -11,9 +11,7 @@ export async function GET(
 ) {
   const { placeId } = await context.params;
   try {
-    const place = await getPlaceDetail(placeId, {
-      apiKey: process.env.GOOGLE_MAPS_API_KEY!,
-    });
+    const place = await getPlaceDetail(placeId);
 
     const userPosts = await db.query.posts.findMany({
       where: eq(posts.placeId, placeId),

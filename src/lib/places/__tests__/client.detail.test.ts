@@ -1,65 +1,73 @@
 import { describe, it, expect, vi } from "vitest";
 import { getPlaceDetail } from "@/lib/places/client";
 
-const detailResponse = {
-  id: "place_a",
-  displayName: { text: "Quán A" },
-  formattedAddress: "1 Đường A",
-  location: { latitude: 10.78, longitude: 106.69 },
-  rating: 4.5,
-  userRatingCount: 120,
-  photos: [{ name: "places/place_a/photos/p1" }, { name: "places/place_a/photos/p2" }],
-  reviews: [
-    {
-      authorAttribution: { displayName: "Nguyễn A", uri: "https://maps.google.com/x" },
-      rating: 5,
-      text: { text: "Ngon!" },
-      relativePublishTimeDescription: "2 tuần trước",
-    },
-  ],
-};
-
-function fakeFetch(body: unknown, status = 200) {
-  return vi.fn(async (..._args: Parameters<typeof fetch>) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json" },
-    }),
-  );
+function overpassResponse(elements: unknown[], status = 200) {
+  return new Response(JSON.stringify({ elements }), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
+const detailElement = {
+  type: "node",
+  id: 123,
+  lat: 10.78,
+  lon: 106.69,
+  tags: {
+    name: "Quán A",
+    "addr:housenumber": "1",
+    "addr:street": "Đường A",
+    wikipedia: "vi:Quán A",
+  },
+};
+
 describe("getPlaceDetail", () => {
-  it("normalizes detail with reviews and photoNames", async () => {
-    const detail = await getPlaceDetail("place_a", {
-      apiKey: "k",
-      fetchImpl: fakeFetch(detailResponse),
+  it("normalizes detail and pulls a Wikipedia image", async () => {
+    const fetchImpl = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
+      if (String(url).includes("wikipedia.org")) {
+        return new Response(
+          JSON.stringify({
+            query: {
+              pages: {
+                "1": { title: "Quán A", thumbnail: { source: "https://img/a.jpg" } },
+              },
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return overpassResponse([detailElement]);
     });
-    expect(detail.placeId).toBe("place_a");
+    const detail = await getPlaceDetail("node/123", { fetchImpl });
+    expect(detail.placeId).toBe("node/123");
     expect(detail.name).toBe("Quán A");
-    expect(detail.photoNames).toEqual([
-      "places/place_a/photos/p1",
-      "places/place_a/photos/p2",
-    ]);
-    expect(detail.reviews).toHaveLength(1);
-    expect(detail.reviews[0]).toMatchObject({
-      authorName: "Nguyễn A",
-      authorUri: "https://maps.google.com/x",
-      rating: 5,
-      text: "Ngon!",
-      relativeTime: "2 tuần trước",
-    });
+    expect(detail.address).toBe("1, Đường A");
+    expect(detail.imageUrls).toEqual(["https://img/a.jpg"]);
+    expect(detail.imageUrl).toBe("https://img/a.jpg");
   });
 
-  it("calls the place-specific endpoint with the id", async () => {
-    const fetchImpl = fakeFetch(detailResponse);
-    await getPlaceDetail("place_a", { apiKey: "k", fetchImpl });
-    const [url] = fetchImpl.mock.calls[0];
-    expect(String(url)).toBe("https://places.googleapis.com/v1/places/place_a");
+  it("sends the element type+id in the Overpass query", async () => {
+    const fetchImpl = vi.fn(async (..._args: Parameters<typeof fetch>) =>
+      overpassResponse([detailElement]),
+    );
+    await getPlaceDetail("node/123", { fetchImpl });
+    const [, init] = fetchImpl.mock.calls[0];
+    expect(decodeURIComponent(String(init!.body))).toContain("node(123)");
   });
 
-  it("throws on non-ok", async () => {
-    await expect(
-      getPlaceDetail("x", { apiKey: "k", fetchImpl: fakeFetch("no", 404) }),
-    ).rejects.toThrow(/places api/i);
+  it("throws on an invalid placeId", async () => {
+    const fetchImpl = vi.fn(async () => overpassResponse([detailElement]));
+    await expect(getPlaceDetail("garbage", { fetchImpl })).rejects.toThrow(/invalid placeid/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("throws on non-ok response", async () => {
+    const fetchImpl = vi.fn(async () => overpassResponse([], 504));
+    await expect(getPlaceDetail("node/123", { fetchImpl })).rejects.toThrow(/overpass/i);
+  });
+
+  it("throws when the place is not found", async () => {
+    const fetchImpl = vi.fn(async () => overpassResponse([]));
+    await expect(getPlaceDetail("node/999", { fetchImpl })).rejects.toThrow(/not found/i);
   });
 });

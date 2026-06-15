@@ -1,38 +1,40 @@
 export const CATEGORIES = ["food", "cafe", "fun", "sightseeing"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-const CATEGORY_TYPES: Record<Category, string[]> = {
-  food: ["restaurant", "meal_takeaway"],
-  cafe: ["cafe", "coffee_shop"],
-  fun: ["amusement_park", "tourist_attraction", "park"],
-  sightseeing: ["tourist_attraction", "museum", "park"],
+// Overpass tag filters per category. Each entry is a [key, value] pair that
+// becomes a `node["key"="value"]` clause in the Overpass query.
+const CATEGORY_TAGS: Record<Category, [string, string][]> = {
+  food: [
+    ["amenity", "restaurant"],
+    ["amenity", "fast_food"],
+  ],
+  cafe: [["amenity", "cafe"]],
+  fun: [
+    ["leisure", "park"],
+    ["tourism", "attraction"],
+    ["tourism", "theme_park"],
+  ],
+  sightseeing: [
+    ["tourism", "attraction"],
+    ["tourism", "museum"],
+    ["historic", "monument"],
+  ],
 };
 
-export function googleTypesForCategory(category: Category): string[] {
-  return CATEGORY_TYPES[category] ?? CATEGORY_TYPES.food;
+export function osmTagsForCategory(category: Category): [string, string][] {
+  return CATEGORY_TAGS[category] ?? CATEGORY_TAGS.food;
 }
 
 export interface Place {
-  placeId: string;
+  placeId: string; // OSM element ref, e.g. "node/123456"
   name: string;
   lat: number;
   lng: number;
   address?: string;
-  rating?: number;
-  userRatingCount?: number;
   distanceMeters?: number;
-  photoName?: string; // Google photo resource name (for fetching photo via API)
-}
-
-export interface PlaceReview {
-  authorName: string;
-  authorUri?: string;
-  rating: number;
-  text?: string;
-  relativeTime?: string;
+  imageUrl?: string; // Wikipedia thumbnail when the POI has a wikipedia/wikidata tag
 }
 
 export interface PlaceDetail extends Place {
-  reviews: PlaceReview[];
-  photoNames: string[];
+  imageUrls: string[];
 }
