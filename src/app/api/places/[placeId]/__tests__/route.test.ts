@@ -4,6 +4,20 @@ vi.mock("@/lib/places/client", () => ({
   getPlaceDetail: vi.fn(),
 }));
 
+vi.mock("@/auth", () => ({
+  auth: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/db", () => ({
+  db: {
+    query: {
+      posts: { findMany: vi.fn().mockResolvedValue([]) },
+      reviews: { findMany: vi.fn().mockResolvedValue([]) },
+      favorites: { findFirst: vi.fn().mockResolvedValue(undefined) },
+    },
+  },
+}));
+
 import { GET } from "@/app/api/places/[placeId]/route";
 import { getPlaceDetail } from "@/lib/places/client";
 
@@ -19,7 +33,7 @@ function ctx(placeId: string) {
 }
 
 describe("GET /api/places/[placeId]", () => {
-  it("returns google detail plus empty user content", async () => {
+  it("returns google detail plus user content", async () => {
     mockedDetail.mockResolvedValue({
       placeId: "p1",
       name: "A",
@@ -34,6 +48,7 @@ describe("GET /api/places/[placeId]", () => {
     expect(body.place.placeId).toBe("p1");
     expect(body.userPosts).toEqual([]);
     expect(body.userReviews).toEqual([]);
+    expect(body.isFavorite).toBe(false);
   });
 
   it("500s when the client throws", async () => {
