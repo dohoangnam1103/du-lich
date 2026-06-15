@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ddl
+      POSTGRES_PASSWORD: ddl_dev_pw
+      POSTGRES_DB: dia_diem
+    ports:
+      - "5432:5432"
+    volumes:
+      - ddl_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ddl_pgdata:
