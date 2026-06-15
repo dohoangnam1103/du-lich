@@ -8,6 +8,13 @@
       "when": 1781497742928,
       "tag": "0000_magenta_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781515153262,
+      "tag": "0001_worthless_champions",
+      "breakpoints": true
     }
   ]
 }
