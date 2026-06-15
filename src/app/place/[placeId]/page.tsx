@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import type { PlaceDetail } from "@/lib/places/types";
 import { haversineMeters } from "@/lib/geo";
+import { getPlaceDetail } from "@/lib/places/client";
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { posts, reviews, favorites } from "@/db/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ReviewForm } from "@/components/ReviewForm";
 import { PostCard, type FeedPost } from "@/components/PostCard";
@@ -27,15 +31,46 @@ type DetailResponse = {
 };
 
 async function fetchDetail(placeId: string): Promise<DetailResponse | null> {
-  const h = await headers();
-  const host = h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const res = await fetch(
-    `${proto}://${host}/api/places/${encodeURIComponent(placeId)}`,
-    { cache: "no-store" },
-  );
-  if (!res.ok) return null;
-  return (await res.json()) as DetailResponse;
+  try {
+    const place = await getPlaceDetail(placeId);
+
+    const userPosts = await db.query.posts.findMany({
+      where: eq(posts.placeId, placeId),
+      orderBy: [desc(posts.createdAt)],
+      limit: 20,
+      with: {
+        media: { orderBy: (m, { asc }) => [asc(m.position)] },
+        user: { columns: { displayName: true, avatarUrl: true } },
+      },
+    });
+
+    const userReviews = await db.query.reviews.findMany({
+      where: eq(reviews.placeId, placeId),
+      orderBy: [desc(reviews.createdAt)],
+      with: { user: { columns: { displayName: true, avatarUrl: true } } },
+    });
+
+    const session = await auth();
+    let isFavorite = false;
+    if (session?.user?.id) {
+      const fav = await db.query.favorites.findFirst({
+        where: and(
+          eq(favorites.userId, session.user.id),
+          eq(favorites.placeId, placeId),
+        ),
+      });
+      isFavorite = !!fav;
+    }
+
+    return {
+      place,
+      userPosts: userPosts as unknown as FeedPost[],
+      userReviews: userReviews as unknown as CommunityReview[],
+      isFavorite,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default async function PlaceDetailPage({
@@ -45,7 +80,8 @@ export default async function PlaceDetailPage({
   params: Promise<{ placeId: string }>;
   searchParams: Promise<{ lat?: string; lng?: string }>;
 }) {
-  const { placeId } = await params;
+  const { placeId: rawPlaceId } = await params;
+  const placeId = decodeURIComponent(rawPlaceId);
   const { lat, lng } = await searchParams;
   const data = await fetchDetail(placeId);
 

@@ -1,11 +1,11 @@
 :root {
-  --bg-grad-1: #1b2a4a;
-  --bg-grad-2: #3a1c5e;
-  --glass-bg: rgba(255, 255, 255, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.35);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  --text: #f5f7ff;
-  --text-dim: rgba(245, 247, 255, 0.7);
+  --bg-grad-1: #e8f0ff;
+  --bg-grad-2: #f3e9ff;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px rgba(80, 90, 140, 0.15);
+  --text: #1d2440;
+  --text-dim: rgba(29, 36, 64, 0.6);
 }
 
 * {
@@ -45,10 +45,10 @@ body {
   padding: 1px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.7),
+    rgba(255, 255, 255, 0.9),
     rgba(255, 255, 255, 0) 40%,
-    rgba(255, 255, 255, 0) 60%,
-    rgba(255, 255, 255, 0.3)
+    rgba(120, 130, 180, 0) 60%,
+    rgba(120, 130, 180, 0.25)
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
