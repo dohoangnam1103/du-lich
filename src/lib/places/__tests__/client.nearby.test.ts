@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { searchNearby } from "@/lib/places/client";
 
 function fakeFetch(jsonBody: unknown) {
-  return vi.fn(async () =>
+  return vi.fn(async (..._args: Parameters<typeof fetch>) =>
     new Response(JSON.stringify(jsonBody), {
       status: 200,
       headers: { "content-type": "application/json" },
@@ -71,7 +71,7 @@ describe("searchNearby", () => {
       { apiKey: "secret", fetchImpl },
     );
     const [, init] = fetchImpl.mock.calls[0];
-    const headers = init.headers as Record<string, string>;
+    const headers = init!.headers as Record<string, string>;
     expect(headers["X-Goog-Api-Key"]).toBe("secret");
     expect(headers["X-Goog-FieldMask"]).toContain("places.id");
   });

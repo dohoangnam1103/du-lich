@@ -20,7 +20,7 @@ const detailResponse = {
 };
 
 function fakeFetch(body: unknown, status = 200) {
-  return vi.fn(async () =>
+  return vi.fn(async (..._args: Parameters<typeof fetch>) =>
     new Response(JSON.stringify(body), {
       status,
       headers: { "content-type": "application/json" },
