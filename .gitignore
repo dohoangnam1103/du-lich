@@ -45,3 +45,5 @@ next-env.d.ts
 
 # brainstorm companion dir
 .superpowers/
+
+/uploads
