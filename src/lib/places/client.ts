@@ -1,5 +1,5 @@
 import { haversineMeters } from "@/lib/geo";
-import type { Place } from "./types";
+import type { Place, PlaceDetail, PlaceReview } from "./types";
 
 type FetchImpl = typeof fetch;
 
@@ -83,4 +83,64 @@ export async function searchNearby(
 
   places.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
   return places;
+}
+
+const DETAIL_FIELD_MASK = [
+  "id",
+  "displayName",
+  "formattedAddress",
+  "location",
+  "rating",
+  "userRatingCount",
+  "photos",
+  "reviews",
+].join(",");
+
+interface GoogleReview {
+  authorAttribution?: { displayName?: string; uri?: string };
+  rating?: number;
+  text?: { text?: string };
+  relativePublishTimeDescription?: string;
+}
+
+export async function getPlaceDetail(
+  placeId: string,
+  options: ClientOptions,
+): Promise<PlaceDetail> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const res = await fetchImpl(`https://places.googleapis.com/v1/places/${placeId}`, {
+    method: "GET",
+    headers: {
+      "X-Goog-Api-Key": options.apiKey,
+      "X-Goog-FieldMask": DETAIL_FIELD_MASK,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Places API detail failed: ${res.status}`);
+  }
+
+  const p = (await res.json()) as GooglePlace & { reviews?: GoogleReview[] };
+  const reviews: PlaceReview[] = (p.reviews ?? []).map((r) => ({
+    authorName: r.authorAttribution?.displayName ?? "Ẩn danh",
+    authorUri: r.authorAttribution?.uri,
+    rating: r.rating ?? 0,
+    text: r.text?.text,
+    relativeTime: r.relativePublishTimeDescription,
+  }));
+
+  const lat = p.location?.latitude ?? 0;
+  const lng = p.location?.longitude ?? 0;
+  return {
+    placeId: p.id,
+    name: p.displayName?.text ?? "(không tên)",
+    address: p.formattedAddress,
+    lat,
+    lng,
+    rating: p.rating,
+    userRatingCount: p.userRatingCount,
+    photoName: p.photos?.[0]?.name,
+    photoNames: (p.photos ?? []).map((ph) => ph.name),
+    reviews,
+  };
 }
