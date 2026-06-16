@@ -29,26 +29,34 @@ export default function Home() {
     );
   }, []);
 
-  const load = useCallback(async () => {
-    if (!coords) return;
-    setLoading(true);
-    try {
-      const qs = new URLSearchParams({
-        lat: String(coords.lat),
-        lng: String(coords.lng),
-        vehicle,
-        category,
-      });
-      const res = await fetch(`/api/places/nearby?${qs}`);
-      const body = await res.json();
-      setPlaces(body.places ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [coords, vehicle, category]);
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      if (!coords) return;
+      setLoading(true);
+      try {
+        const qs = new URLSearchParams({
+          lat: String(coords.lat),
+          lng: String(coords.lng),
+          vehicle,
+          category,
+        });
+        const res = await fetch(`/api/places/nearby?${qs}`, { signal });
+        const body = await res.json();
+        setPlaces(body.places ?? []);
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        setPlaces([]);
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    },
+    [coords, vehicle, category],
+  );
 
   useEffect(() => {
-    load();
+    const ctrl = new AbortController();
+    load(ctrl.signal);
+    return () => ctrl.abort();
   }, [load]);
 
   return (
