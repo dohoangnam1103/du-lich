@@ -22,14 +22,19 @@ const detailElement = {
 };
 
 describe("getPlaceDetail", () => {
-  it("normalizes detail and pulls a Wikipedia image", async () => {
+  it("normalizes detail and pulls Wikipedia image + extract", async () => {
     const fetchImpl = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
       if (String(url).includes("wikipedia.org")) {
         return new Response(
           JSON.stringify({
             query: {
               pages: {
-                "1": { title: "Quán A", thumbnail: { source: "https://img/a.jpg" } },
+                "1": {
+                  title: "Quán A",
+                  thumbnail: { source: "https://img/a.jpg" },
+                  extract: "Quán A là một quán nổi tiếng.",
+                  fullurl: "https://vi.wikipedia.org/wiki/Quán_A",
+                },
               },
             },
           }),
@@ -44,6 +49,8 @@ describe("getPlaceDetail", () => {
     expect(detail.address).toBe("1, Đường A");
     expect(detail.imageUrls).toEqual(["https://img/a.jpg"]);
     expect(detail.imageUrl).toBe("https://img/a.jpg");
+    expect(detail.description).toBe("Quán A là một quán nổi tiếng.");
+    expect(detail.wikiUrl).toBe("https://vi.wikipedia.org/wiki/Quán_A");
   });
 
   it("sends the element type+id in the Overpass query", async () => {

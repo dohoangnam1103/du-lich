@@ -37,4 +37,6 @@ export interface Place {
 
 export interface PlaceDetail extends Place {
   imageUrls: string[];
+  description?: string; // Wikipedia extract when the POI has a wikipedia tag
+  wikiUrl?: string; // Link to the source Wikipedia article
 }

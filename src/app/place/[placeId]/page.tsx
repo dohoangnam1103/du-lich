@@ -152,6 +152,22 @@ export default async function PlaceDetailPage({
         <p style={{ color: "var(--text-dim)" }}>📍 {formatDistance(distanceMeters)}</p>
       )}
 
+      {place.description && (
+        <div className="glass glass-edge" style={{ padding: 14, marginTop: 12 }}>
+          <p style={{ lineHeight: 1.6 }}>{place.description}</p>
+          {place.wikiUrl && (
+            <a
+              href={place.wikiUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--text-dim)", fontSize: 13 }}
+            >
+              Nguồn: Wikipedia ↗
+            </a>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         <FavoriteButton placeId={placeId} initial={isFavorite} />
         <a

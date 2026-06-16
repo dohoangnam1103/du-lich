@@ -118,6 +118,50 @@ async function fetchWikipediaImages(
   return result;
 }
 
+// Fetches a single article's intro extract + thumbnail + canonical URL.
+// Best-effort: returns an empty object on any failure.
+async function fetchWikipediaSummary(
+  rawTag: string,
+  fetchImpl: FetchImpl,
+): Promise<{ image?: string; description?: string; wikiUrl?: string }> {
+  const parsed = parseWikipediaTag(rawTag);
+  if (!parsed) return {};
+  const { lang, title } = parsed;
+  const url =
+    `https://${lang}.wikipedia.org/w/api.php` +
+    `?action=query&format=json&origin=*&redirects=1` +
+    `&prop=extracts|pageimages|info&inprop=url` +
+    `&exintro=1&explaintext=1&exsentences=4` +
+    `&pithumbsize=${WIKI_THUMB_SIZE}` +
+    `&titles=${encodeURIComponent(title)}`;
+  try {
+    const res = await fetchImpl(url);
+    if (!res.ok) return {};
+    const data = (await res.json()) as {
+      query?: {
+        pages?: Record<
+          string,
+          {
+            extract?: string;
+            thumbnail?: { source?: string };
+            fullurl?: string;
+          }
+        >;
+      };
+    };
+    const page = Object.values(data.query?.pages ?? {})[0];
+    if (!page) return {};
+    const description = page.extract?.trim() || undefined;
+    return {
+      image: page.thumbnail?.source,
+      description,
+      wikiUrl: page.fullurl,
+    };
+  } catch {
+    return {};
+  }
+}
+
 function buildNearbyQuery(params: NearbyParams): string {
   const clauses = params.tagFilters
     .map(
@@ -226,10 +270,13 @@ export async function getPlaceDetail(
   const tags = el.tags ?? {};
 
   const imageUrls: string[] = [];
+  let description: string | undefined;
+  let wikiUrl: string | undefined;
   if (tags.wikipedia) {
-    const images = await fetchWikipediaImages([tags.wikipedia], fetchImpl);
-    const url = images.get(tags.wikipedia);
-    if (url) imageUrls.push(url);
+    const summary = await fetchWikipediaSummary(tags.wikipedia, fetchImpl);
+    if (summary.image) imageUrls.push(summary.image);
+    description = summary.description;
+    wikiUrl = summary.wikiUrl;
   }
 
   return {
@@ -240,5 +287,7 @@ export async function getPlaceDetail(
     lng,
     imageUrl: imageUrls[0],
     imageUrls,
+    description,
+    wikiUrl,
   };
 }
