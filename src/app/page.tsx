@@ -33,6 +33,7 @@ export default function Home() {
     async (signal: AbortSignal) => {
       if (!coords) return;
       setLoading(true);
+      setPlaces([]);
       try {
         const qs = new URLSearchParams({
           lat: String(coords.lat),
@@ -76,15 +77,29 @@ export default function Home() {
         </div>
       )}
 
-      {loading && <p style={{ color: "var(--text-dim)" }}>Đang tìm…</p>}
+      {loading && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            color: "var(--text-dim)",
+            padding: "8px 0",
+          }}
+        >
+          <span className="spinner" />
+          Đang tìm…
+        </div>
+      )}
 
       {!loading && coords && places.length === 0 && (
         <p style={{ color: "var(--text-dim)" }}>Không tìm thấy địa điểm nào trong bán kính.</p>
       )}
 
-      {places.map((p) => (
-        <PlaceCard key={p.placeId} place={p} userCoords={coords ?? undefined} category={category} />
-      ))}
+      {!loading &&
+        places.map((p) => (
+          <PlaceCard key={p.placeId} place={p} userCoords={coords ?? undefined} category={category} />
+        ))}
     </main>
   );
 }
