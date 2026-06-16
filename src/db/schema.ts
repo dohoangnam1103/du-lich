@@ -88,6 +88,16 @@ export const favorites = pgTable(
   }),
 );
 
+export const reviewMedia = pgTable("review_media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reviewId: uuid("review_id")
+    .notNull()
+    .references(() => reviews.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  type: text("type").notNull(), // 'image' | 'video'
+  position: integer("position").notNull().default(0),
+});
+
 export const accounts = pgTable(
   "accounts",
   {
@@ -150,8 +160,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
 }));
 
-export const reviewsRelations = relations(reviews, ({ one }) => ({
+export const reviewsRelations = relations(reviews, ({ one, many }) => ({
   user: one(users, { fields: [reviews.userId], references: [users.id] }),
+  media: many(reviewMedia),
+}));
+
+export const reviewMediaRelations = relations(reviewMedia, ({ one }) => ({
+  review: one(reviews, { fields: [reviewMedia.reviewId], references: [reviews.id] }),
 }));
 
 export const favoritesRelations = relations(favorites, ({ one }) => ({

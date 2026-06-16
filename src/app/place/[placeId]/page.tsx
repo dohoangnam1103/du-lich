@@ -20,6 +20,7 @@ type CommunityReview = {
   rating: number;
   body: string | null;
   createdAt: string;
+  media: { url: string; type: string }[];
   user: { displayName: string | null; avatarUrl: string | null };
 };
 
@@ -47,7 +48,10 @@ async function fetchDetail(placeId: string): Promise<DetailResponse | null> {
     const userReviews = await db.query.reviews.findMany({
       where: eq(reviews.placeId, placeId),
       orderBy: [desc(reviews.createdAt)],
-      with: { user: { columns: { displayName: true, avatarUrl: true } } },
+      with: {
+        media: { orderBy: (m, { asc }) => [asc(m.position)] },
+        user: { columns: { displayName: true, avatarUrl: true } },
+      },
     });
 
     const session = await auth();
@@ -103,21 +107,43 @@ export default async function PlaceDetailPage({
       ? haversineMeters(userLat, userLng, place.lat, place.lng)
       : null;
 
-  const hero = place.imageUrls[0] ?? null;
+  const gallery = [
+    ...place.imageUrls,
+    ...userReviews.flatMap((r) =>
+      r.media.filter((m) => m.type === "image").map((m) => m.url),
+    ),
+    ...userPosts.flatMap((p) =>
+      p.media.filter((m) => m.type === "image").map((m) => m.url),
+    ),
+  ];
 
   return (
     <main style={{ maxWidth: 520, margin: "0 auto", padding: 16, paddingBottom: 48 }}>
       <Link href="/" style={{ color: "var(--text-dim)" }}>← Quay lại</Link>
 
-      {hero && (
+      {gallery.length > 0 && (
         <div
           style={{
-            height: 220,
-            borderRadius: 22,
+            display: "flex",
+            gap: 8,
+            overflowX: "auto",
             margin: "12px 0",
-            background: `center/cover url(${hero})`,
+            scrollSnapType: "x mandatory",
           }}
-        />
+        >
+          {gallery.map((url, i) => (
+            <div
+              key={i}
+              style={{
+                flex: gallery.length === 1 ? "1 0 100%" : "0 0 78%",
+                height: 220,
+                borderRadius: 22,
+                background: `center/cover url(${url})`,
+                scrollSnapAlign: "start",
+              }}
+            />
+          ))}
+        </div>
       )}
 
       <h1 style={{ fontSize: 24, margin: "8px 0" }}>{place.name}</h1>
@@ -165,6 +191,21 @@ export default async function PlaceDetailPage({
               <span>⭐ {r.rating}</span>
             </div>
             {r.body && <p style={{ marginTop: 6 }}>{r.body}</p>}
+            {r.media.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
+                {r.media
+                  .filter((m) => m.type === "image")
+                  .map((m, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={m.url}
+                      alt=""
+                      style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 12 }}
+                    />
+                  ))}
+              </div>
+            )}
           </div>
         ))}
       </section>

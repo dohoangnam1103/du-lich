@@ -26,6 +26,7 @@ export const reviewSchema = z.object({
   placeId: z.string().min(1),
   rating: z.number().int().min(1).max(5),
   body: z.string().max(2000).optional(),
+  media: z.array(mediaSchema).max(10).default([]),
 });
 
 export const favoriteSchema = z.object({

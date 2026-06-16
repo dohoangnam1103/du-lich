@@ -15,6 +15,13 @@
       "when": 1781515153262,
       "tag": "0001_worthless_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781537321234,
+      "tag": "0002_pale_liz_osborn",
+      "breakpoints": true
     }
   ]
 }
