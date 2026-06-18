@@ -88,7 +88,7 @@ export default function NotificationsPage() {
               style={{
                 alignItems: "center",
                 gap: 12,
-                background: n.read ? undefined : "rgba(91,124,255,0.08)",
+                background: n.read ? undefined : "var(--surface-2)",
               }}
             >
               <div

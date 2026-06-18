@@ -264,7 +264,7 @@ export function PostCard({ post }: { post: FeedPost }) {
             gap: 6,
             fontSize: 15,
             fontWeight: 600,
-            color: liked ? "#e0466e" : "var(--text-dim)",
+            color: liked ? "var(--ink)" : "var(--text-dim)",
             padding: 0,
           }}
         >

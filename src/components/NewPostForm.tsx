@@ -130,7 +130,7 @@ export function NewPostForm() {
         {coords ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : t("newpost.attachLocation")}
       </button>
 
-      {error && <div style={{ color: "#e0466e", fontSize: 14, fontWeight: 600 }}>{error}</div>}
+      {error && <div style={{ color: "var(--danger)", fontSize: 14, fontWeight: 600 }}>{error}</div>}
 
       <button type="submit" className="glass-btn glass-btn-primary" disabled={submitting || uploading}>
         {submitting ? t("newpost.publishing") : t("newpost.publish")}

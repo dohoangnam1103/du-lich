@@ -61,7 +61,7 @@ export function PlaceCard({
             alignItems: "center",
             justifyContent: "center",
             fontSize: 34,
-            background: "linear-gradient(135deg, rgba(91,124,255,0.18), rgba(155,92,255,0.18))",
+            background: "var(--surface-2)",
           }}
         >
           {photoSrc ? (
@@ -73,7 +73,7 @@ export function PlaceCard({
               style={{ objectFit: "cover" }}
             />
           ) : (
-            fallbackIcon
+            <span style={{ opacity: 0.5 }}>{fallbackIcon}</span>
           )}
         </div>
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -92,56 +92,31 @@ export function PlaceCard({
               {place.address}
             </div>
           )}
-          <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "var(--accent-1)",
-                background: "rgba(91,124,255,0.12)",
-                padding: "3px 10px",
-                borderRadius: 999,
-              }}
-            >
-              📍 {formatDistance(place.distanceMeters)}
-            </span>
+          <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", fontSize: 12.5, color: "var(--text-dim)" }}>
+            <span>{formatDistance(place.distanceMeters)}</span>
             {place.rating != null && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "#b8860b",
-                  background: "rgba(255,193,7,0.16)",
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                }}
-              >
-                ⭐ {place.rating.toFixed(1)}
-                {place.ratingCount ? ` (${place.ratingCount})` : ""}
-              </span>
+              <>
+                <span style={{ color: "var(--text-faint)" }}>·</span>
+                <span style={{ color: "var(--ink)", fontWeight: 550 }}>
+                  ★ {place.rating.toFixed(1)}
+                  {place.ratingCount ? (
+                    <span style={{ color: "var(--text-dim)", fontWeight: 400 }}> ({place.ratingCount})</span>
+                  ) : null}
+                </span>
+              </>
             )}
             {openLabel && (
-              <span
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: openState === "open" ? "#1a8f4c" : "#c0392b",
-                  background:
-                    openState === "open"
-                      ? "rgba(26,143,76,0.14)"
-                      : "rgba(192,57,43,0.12)",
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                }}
-              >
-                {openLabel}
-              </span>
+              <>
+                <span style={{ color: "var(--text-faint)" }}>·</span>
+                <span
+                  style={{
+                    fontWeight: 550,
+                    color: openState === "open" ? "var(--ink)" : "var(--text-faint)",
+                  }}
+                >
+                  {openLabel}
+                </span>
+              </>
             )}
           </div>
         </div>

@@ -81,8 +81,7 @@ export default function FavoritesPage() {
                   display: "grid",
                   placeItems: "center",
                   fontSize: 24,
-                  background:
-                    "linear-gradient(135deg, rgba(91,124,255,0.18), rgba(155,92,255,0.18))",
+                  background: "var(--surface-2)",
                 }}
               >
                 📍

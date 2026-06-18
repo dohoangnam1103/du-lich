@@ -181,7 +181,7 @@ export default function CollectionDetailPage({
               {t("col.total")} {fmtKm(route.distanceMeters)} · ~{fmtDuration(route.durationSeconds)}
             </p>
           )}
-          {routeError && <p style={{ color: "#c0392b", marginTop: 8 }}>{routeError}</p>}
+          {routeError && <p style={{ color: "var(--danger)", marginTop: 8 }}>{routeError}</p>}
         </div>
       )}
 

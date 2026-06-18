@@ -1,29 +1,40 @@
 :root {
-  --bg-base: #eef2fb;
-  --bg-grad-1: #e6eeff;
-  --bg-grad-2: #f1e8ff;
-  --bg-grad-3: #e9fbff;
+  /* Neutral, elegant palette — warm off-white surfaces, near-black ink. */
+  --bg: #f4f3f1;
+  --surface: #ffffff;
+  --surface-2: #faf9f7;
 
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-bg-strong: rgba(255, 255, 255, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.85);
-  --glass-shadow: 0 10px 30px rgba(70, 84, 140, 0.16);
-  --glass-shadow-lg: 0 18px 50px rgba(70, 84, 140, 0.22);
+  --ink: #1c1b19;
+  --text: #1c1b19;
+  --text-dim: rgba(28, 27, 25, 0.56);
+  --text-faint: rgba(28, 27, 25, 0.38);
 
-  --text: #141b35;
-  --text-dim: rgba(20, 27, 53, 0.62);
-  --text-faint: rgba(20, 27, 53, 0.42);
+  --line: #e7e4df;
+  --line-strong: #d9d5ce;
 
-  --accent-1: #4f7cff;
-  --accent-2: #9b5cff;
-  --accent-3: #ff7eb6;
-  --accent-grad: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  --accent-glow: 0 6px 18px rgba(91, 110, 255, 0.45);
+  --shadow-sm: 0 1px 2px rgba(28, 27, 25, 0.05);
+  --shadow: 0 2px 10px rgba(28, 27, 25, 0.06);
+  --shadow-lg: 0 8px 28px rgba(28, 27, 25, 0.1);
 
-  --ring: 0 0 0 3px rgba(91, 124, 255, 0.35);
-  --radius-lg: 22px;
-  --radius-md: 16px;
+  /* Accent collapses to ink so existing var() usages stay neutral. */
+  --accent-1: #1c1b19;
+  --accent-2: #1c1b19;
+  --accent-grad: #1c1b19;
+  --accent-glow: 0 2px 10px rgba(28, 27, 25, 0.18);
+
+  --danger: #b3261e;
+
+  --ring: 0 0 0 3px rgba(28, 27, 25, 0.14);
+  --radius-lg: 16px;
+  --radius-md: 12px;
   --radius-pill: 999px;
+
+  /* Compatibility aliases for older class names. */
+  --glass-bg: #ffffff;
+  --glass-bg-strong: #ffffff;
+  --glass-border: var(--line);
+  --glass-shadow: var(--shadow);
+  --glass-shadow-lg: var(--shadow-lg);
 }
 
 * {
@@ -35,114 +46,89 @@ body {
   margin: 0;
   padding: 0;
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
   min-height: 100vh;
-  background-color: var(--bg-base);
-  background-image:
-    radial-gradient(50% 40% at 12% 6%, rgba(91, 124, 255, 0.28), transparent 60%),
-    radial-gradient(45% 45% at 92% 12%, rgba(155, 92, 255, 0.26), transparent 60%),
-    radial-gradient(60% 50% at 50% 100%, rgba(255, 126, 182, 0.18), transparent 60%),
-    linear-gradient(160deg, var(--bg-grad-1), var(--bg-grad-2));
-  background-attachment: fixed;
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 ::selection {
-  background: rgba(91, 124, 255, 0.25);
+  background: rgba(28, 27, 25, 0.12);
 }
 
 a {
-  color: var(--accent-1);
+  color: var(--ink);
 }
 
 h1,
 h2,
 h3 {
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  font-weight: 650;
 }
 
-/* ---------- Glass surfaces ---------- */
+/* ---------- Surfaces (formerly "glass") ---------- */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-sm);
 }
 
+/* The old gradient sheen is removed for a clean, flat surface. */
 .glass-edge {
   position: relative;
-  overflow: hidden;
 }
-
 .glass-edge::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95),
-    rgba(255, 255, 255, 0) 42%,
-    rgba(120, 130, 180, 0) 58%,
-    rgba(120, 130, 180, 0.3)
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  content: none;
 }
 
 /* ---------- Buttons ---------- */
 .glass-btn {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
-  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
   font: inherit;
-  font-weight: 600;
+  font-weight: 550;
   padding: 9px 16px;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease,
-    filter 0.2s ease;
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
 }
 
 .glass-btn:hover {
-  background: #fff;
-  box-shadow: var(--glass-shadow-lg);
-  transform: translateY(-1px);
+  background: var(--surface-2);
+  border-color: var(--ink);
 }
 
 .glass-btn:active {
-  transform: translateY(0);
+  transform: translateY(0.5px);
 }
 
 .glass-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
 }
 
 .glass-btn-primary {
-  background: var(--accent-grad);
-  border: none;
+  background: var(--ink);
+  border: 1px solid var(--ink);
   color: #fff;
-  box-shadow: var(--accent-glow);
+  box-shadow: none;
 }
 
 .glass-btn-primary:hover {
-  background: var(--accent-grad);
-  filter: brightness(1.05);
-  box-shadow: 0 10px 26px rgba(91, 110, 255, 0.55);
+  background: #000;
+  border-color: #000;
 }
 
 :where(button, a, input, textarea, [tabindex]):focus-visible {
@@ -153,78 +139,65 @@ h3 {
 /* ---------- Segmented control (VehicleToggle) ---------- */
 .segmented {
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
 }
 
 .segmented-item {
   flex: 1;
   border: none;
   cursor: pointer;
-  border-radius: 14px;
-  padding: 10px 8px;
+  border-radius: 10px;
+  padding: 9px 8px;
   color: var(--text-dim);
   background: transparent;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 550;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .segmented-item:hover {
-  color: var(--text);
-  background: rgba(91, 124, 255, 0.1);
+  color: var(--ink);
 }
 
 .segmented-item.is-active {
   color: #fff;
-  background: var(--accent-grad);
-  box-shadow: var(--accent-glow);
+  background: var(--ink);
 }
 
 .segmented-item .seg-icon {
-  font-size: 18px;
+  font-size: 17px;
 }
 
-/* ---------- Chips (CategoryChips) ---------- */
+/* ---------- Chips (CategoryChips, filters) ---------- */
 .chip {
   flex: 0 0 auto;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--line-strong);
   cursor: pointer;
   border-radius: var(--radius-pill);
-  padding: 9px 18px;
+  padding: 7px 15px;
   color: var(--text-dim);
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-size: 14px;
-  font-weight: 600;
+  background: var(--surface);
+  font-size: 13.5px;
+  font-weight: 550;
   white-space: nowrap;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .chip:hover {
-  color: var(--text);
-  transform: translateY(-1px);
-  box-shadow: var(--glass-shadow);
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .chip.is-active {
   color: #fff;
-  background: var(--accent-grad);
-  border-color: transparent;
-  box-shadow: var(--accent-glow);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 /* ---------- Cards ---------- */
@@ -238,29 +211,25 @@ h3 {
   display: flex;
   gap: 12px;
   padding: 12px;
-  margin-bottom: 12px;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.2s ease;
+  margin-bottom: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card-link:hover .place-card {
-  transform: translateY(-2px);
-  box-shadow: var(--glass-shadow-lg);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
 }
 
 /* ---------- Inputs ---------- */
 .field {
   width: 100%;
-  padding: 11px 14px;
+  padding: 10px 13px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg-strong);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
-  transition:
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field::placeholder {
@@ -269,18 +238,18 @@ h3 {
 
 .field:focus {
   outline: none;
-  border-color: rgba(91, 124, 255, 0.6);
+  border-color: var(--ink);
   box-shadow: var(--ring);
 }
 
 /* ---------- Spinner ---------- */
 .spinner {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
   border-radius: 50%;
-  border: 2px solid rgba(120, 130, 180, 0.25);
-  border-top-color: var(--accent-1);
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--ink);
   animation: spin 0.7s linear infinite;
 }
 
@@ -293,16 +262,22 @@ h3 {
 /* ---------- Header / brand ---------- */
 .app-header {
   position: sticky;
-  top: 16px;
+  top: 0;
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  max-width: 552px;
-  margin: 16px auto;
-  background: var(--glass-bg-strong);
+  padding: 12px 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  background: rgba(244, 243, 241, 0.82);
+  backdrop-filter: saturate(120%) blur(8px);
+  -webkit-backdrop-filter: saturate(120%) blur(8px);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .brand {
@@ -314,15 +289,16 @@ h3 {
 }
 
 .brand-mark {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  font-size: 20px;
-  background: var(--accent-grad);
-  box-shadow: 0 6px 16px rgba(91, 140, 255, 0.45);
+  border-radius: 9px;
+  font-size: 17px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
 }
 
 .brand-text {
@@ -332,55 +308,51 @@ h3 {
 }
 
 .brand-title {
-  font-size: 16px;
-  font-weight: 800;
-  background: linear-gradient(120deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  -webkit-text-fill-color: currentColor;
 }
 
 .brand-tagline {
   font-size: 11px;
   color: var(--text-dim);
-  font-weight: 500;
+  font-weight: 450;
 }
 
 /* ---------- Misc helpers ---------- */
 .section-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 650;
   margin: 0 0 10px;
+  letter-spacing: -0.01em;
 }
 
 .muted {
   color: var(--text-dim);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation-duration: 0.001ms !important;
-  }
-}
-
 /* ---------- Bottom navigation ---------- */
 .app-content {
-  padding-bottom: 92px; /* room for the fixed bottom nav */
+  padding-bottom: 84px;
 }
 
 .bottom-nav {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 14px;
+  bottom: 12px;
   z-index: 60;
   width: calc(100% - 24px);
-  max-width: 552px;
+  max-width: 560px;
   display: flex;
   gap: 2px;
-  padding: 8px;
-  background: var(--glass-bg-strong);
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
 }
 
 .bottom-nav-item {
@@ -388,33 +360,30 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   padding: 7px 4px;
-  border-radius: 14px;
+  border-radius: 11px;
   text-decoration: none;
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 600;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.15s ease;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 550;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .bottom-nav-item:hover {
-  color: var(--text);
-  background: rgba(91, 124, 255, 0.1);
+  color: var(--ink);
+  background: var(--surface-2);
 }
 
 .bottom-nav-item.is-active {
-  color: #fff;
-  background: var(--accent-grad);
-  box-shadow: var(--accent-glow);
+  color: var(--ink);
+  background: var(--surface-2);
 }
 
 .bottom-nav-icon {
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1;
+  filter: grayscale(0.2);
 }
 
 .bottom-nav-label {
@@ -429,6 +398,7 @@ h3 {
   overflow: hidden;
   position: relative;
   z-index: 0;
+  border: 1px solid var(--line);
 }
 
 .leaflet-container {
@@ -437,12 +407,12 @@ h3 {
   font: inherit;
 }
 
-/* ---------- Skeleton (loading placeholders) ---------- */
+/* ---------- Skeleton ---------- */
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(120, 130, 180, 0.14);
-  border-radius: 12px;
+  background: rgba(28, 27, 25, 0.07);
+  border-radius: 10px;
 }
 
 .skeleton::after {
@@ -453,7 +423,7 @@ h3 {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.6),
     transparent
   );
   animation: skeleton-shimmer 1.3s infinite;
@@ -466,7 +436,9 @@ h3 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
   .skeleton::after {
-    animation: none;
+    animation: none !important;
+    transition: none !important;
   }
 }

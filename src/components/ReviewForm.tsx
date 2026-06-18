@@ -125,7 +125,7 @@ export function ReviewForm({ placeId }: { placeId: string }) {
           ))}
         </div>
       )}
-      {error && <div style={{ color: "#e0466e", fontSize: 14, fontWeight: 600 }}>{error}</div>}
+      {error && <div style={{ color: "var(--danger)", fontSize: 14, fontWeight: 600 }}>{error}</div>}
       <button type="submit" className="glass-btn glass-btn-primary" disabled={busy || uploading}>
         {busy ? t("review.submitting") : t("review.submit")}
       </button>

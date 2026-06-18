@@ -50,7 +50,7 @@ export function NotificationBell() {
             height: 18,
             padding: "0 4px",
             borderRadius: 999,
-            background: "#e0466e",
+            background: "var(--ink)",
             color: "#fff",
             fontSize: 11,
             fontWeight: 700,
