@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/components/I18nProvider";
 
 type UploadedMedia = { url: string; type: string };
 
 export function NewPostForm() {
   const router = useRouter();
+  const t = useT();
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [caption, setCaption] = useState("");
   const [placeName, setPlaceName] = useState("");
@@ -84,7 +86,7 @@ export function NewPostForm() {
   return (
     <form onSubmit={submit} className="glass glass-edge" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
       <label className="glass-btn" style={{ textAlign: "center", cursor: "pointer" }}>
-        {uploading ? "Đang tải lên..." : "+ Thêm ảnh / video"}
+        {uploading ? t("review.uploading") : t("newpost.addMedia")}
         <input
           type="file"
           accept="image/*,video/*"
@@ -110,39 +112,28 @@ export function NewPostForm() {
       <textarea
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
-        placeholder="Bạn đang đi chơi ở đâu?"
+        placeholder={t("newpost.caption")}
         rows={3}
-        style={{
-          padding: "10px 12px",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          background: "rgba(255,255,255,0.1)",
-          color: "var(--text)",
-          resize: "vertical",
-        }}
+        className="field"
+        style={{ resize: "vertical" }}
       />
 
       <input
         value={placeName}
         onChange={(e) => setPlaceName(e.target.value)}
-        placeholder="Tên địa điểm (tùy chọn)"
-        style={{
-          padding: "8px 12px",
-          borderRadius: 999,
-          border: "1px solid var(--glass-border)",
-          background: "rgba(255,255,255,0.1)",
-          color: "var(--text)",
-        }}
+        placeholder={t("newpost.placeName")}
+        className="field"
+        style={{ borderRadius: 999 }}
       />
 
       <button type="button" className="glass-btn" onClick={attachLocation}>
-        {coords ? `📍 Đã gắn vị trí (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})` : "📍 Gắn vị trí hiện tại"}
+        {coords ? `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : t("newpost.attachLocation")}
       </button>
 
-      {error && <div style={{ color: "#ffb4b4", fontSize: 14 }}>{error}</div>}
+      {error && <div style={{ color: "#e0466e", fontSize: 14, fontWeight: 600 }}>{error}</div>}
 
-      <button type="submit" className="glass-btn" disabled={submitting || uploading}>
-        {submitting ? "Đang đăng..." : "Đăng bài"}
+      <button type="submit" className="glass-btn glass-btn-primary" disabled={submitting || uploading}>
+        {submitting ? t("newpost.publishing") : t("newpost.publish")}
       </button>
     </form>
   );

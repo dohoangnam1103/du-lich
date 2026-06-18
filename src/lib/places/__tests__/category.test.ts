@@ -14,7 +14,22 @@ describe("osmTagsForCategory", () => {
   it("maps sightseeing to tourism/historic tags", () => {
     expect(osmTagsForCategory("sightseeing")).toContainEqual(["tourism", "museum"]);
   });
-  it("lists all four categories", () => {
-    expect(CATEGORIES).toEqual(["food", "cafe", "fun", "sightseeing"]);
+  it("lists the core categories plus the extended ones", () => {
+    expect(CATEGORIES).toEqual([
+      "food",
+      "cafe",
+      "fun",
+      "sightseeing",
+      "hotel",
+      "atm",
+      "fuel",
+      "health",
+      "shopping",
+    ]);
+  });
+  it("maps extended categories to OSM tags", () => {
+    expect(osmTagsForCategory("hotel")).toContainEqual(["tourism", "hotel"]);
+    expect(osmTagsForCategory("fuel")).toContainEqual(["amenity", "fuel"]);
+    expect(osmTagsForCategory("health")).toContainEqual(["amenity", "pharmacy"]);
   });
 });

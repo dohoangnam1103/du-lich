@@ -1,11 +1,12 @@
 "use client";
 
 import type { Vehicle } from "@/lib/vehicle";
+import { useT } from "@/components/I18nProvider";
 
-const ITEMS: { value: Vehicle; label: string; icon: string }[] = [
-  { value: "walk", label: "Đi bộ", icon: "🚶" },
-  { value: "motorbike", label: "Xe máy", icon: "🛵" },
-  { value: "car", label: "Ô tô", icon: "🚗" },
+const ITEMS: { value: Vehicle; key: string; icon: string }[] = [
+  { value: "walk", key: "vehicle.walk", icon: "🚶" },
+  { value: "motorbike", key: "vehicle.motorbike", icon: "🛵" },
+  { value: "car", key: "vehicle.car", icon: "🚗" },
 ];
 
 export function VehicleToggle({
@@ -15,8 +16,9 @@ export function VehicleToggle({
   value: Vehicle;
   onChange: (v: Vehicle) => void;
 }) {
+  const t = useT();
   return (
-    <div className="glass glass-edge" style={{ display: "flex", gap: 4, padding: 4 }}>
+    <div className="glass glass-edge segmented">
       {ITEMS.map((it) => {
         const active = it.value === value;
         return (
@@ -25,18 +27,9 @@ export function VehicleToggle({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(it.value)}
-            style={{
-              flex: 1,
-              border: "none",
-              cursor: "pointer",
-              borderRadius: 16,
-              padding: "10px 8px",
-              color: "var(--text)",
-              background: active ? "rgba(255,255,255,0.25)" : "transparent",
-              fontSize: 14,
-            }}
+            className={`segmented-item${active ? " is-active" : ""}`}
           >
-            <span style={{ fontSize: 18 }}>{it.icon}</span> {it.label}
+            <span className="seg-icon">{it.icon}</span> {t(it.key)}
           </button>
         );
       })}

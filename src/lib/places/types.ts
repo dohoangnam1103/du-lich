@@ -1,4 +1,14 @@
-export const CATEGORIES = ["food", "cafe", "fun", "sightseeing"] as const;
+export const CATEGORIES = [
+  "food",
+  "cafe",
+  "fun",
+  "sightseeing",
+  "hotel",
+  "atm",
+  "fuel",
+  "health",
+  "shopping",
+] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 // Overpass tag filters per category. Each entry is a [key, value] pair that
@@ -19,6 +29,26 @@ const CATEGORY_TAGS: Record<Category, [string, string][]> = {
     ["tourism", "museum"],
     ["historic", "monument"],
   ],
+  hotel: [
+    ["tourism", "hotel"],
+    ["tourism", "guest_house"],
+    ["tourism", "hostel"],
+  ],
+  atm: [
+    ["amenity", "atm"],
+    ["amenity", "bank"],
+  ],
+  fuel: [["amenity", "fuel"]],
+  health: [
+    ["amenity", "hospital"],
+    ["amenity", "clinic"],
+    ["amenity", "pharmacy"],
+  ],
+  shopping: [
+    ["shop", "supermarket"],
+    ["shop", "mall"],
+    ["amenity", "marketplace"],
+  ],
 };
 
 export function osmTagsForCategory(category: Category): [string, string][] {
@@ -33,10 +63,18 @@ export interface Place {
   address?: string;
   distanceMeters?: number;
   imageUrl?: string; // Wikipedia thumbnail when the POI has a wikipedia/wikidata tag
+  openingHours?: string; // raw OSM opening_hours spec, used for the "open now" badge/filter
+  rating?: number; // average community rating (1..5), filled by the API layer
+  ratingCount?: number; // number of community reviews
 }
 
 export interface PlaceDetail extends Place {
   imageUrls: string[];
-  description?: string; // Wikipedia extract when the POI has a wikipedia tag
+  description?: string; // Wikipedia extract when the POI has a wikipedia/wikidata tag
   wikiUrl?: string; // Link to the source Wikipedia article
+  phone?: string; // OSM phone / contact:phone
+  website?: string; // OSM website / contact:website, or Wikidata official site (P856)
+  openingHours?: string; // OSM opening_hours (raw spec string)
+  cuisine?: string; // OSM cuisine tag (e.g. "vietnamese;coffee_shop")
+  facebook?: string; // OSM contact:facebook
 }

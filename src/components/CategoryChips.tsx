@@ -1,12 +1,18 @@
 "use client";
 
 import type { Category } from "@/lib/places/types";
+import { useT } from "@/components/I18nProvider";
 
-const ITEMS: { value: Category; label: string }[] = [
-  { value: "food", label: "Ăn uống" },
-  { value: "cafe", label: "Cà phê" },
-  { value: "fun", label: "Vui chơi" },
-  { value: "sightseeing", label: "Tham quan" },
+const ITEMS: { value: Category; key: string }[] = [
+  { value: "food", key: "cat.food" },
+  { value: "cafe", key: "cat.cafe" },
+  { value: "fun", key: "cat.fun" },
+  { value: "sightseeing", key: "cat.sightseeing" },
+  { value: "hotel", key: "cat.hotel" },
+  { value: "atm", key: "cat.atm" },
+  { value: "fuel", key: "cat.fuel" },
+  { value: "health", key: "cat.health" },
+  { value: "shopping", key: "cat.shopping" },
 ];
 
 export function CategoryChips({
@@ -16,6 +22,7 @@ export function CategoryChips({
   value: Category;
   onChange: (c: Category) => void;
 }) {
+  const t = useT();
   return (
     <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "4px 0" }}>
       {ITEMS.map((it) => {
@@ -24,21 +31,11 @@ export function CategoryChips({
           <button
             key={it.value}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(it.value)}
-            className="glass-edge"
-            style={{
-              flex: "0 0 auto",
-              border: "1px solid var(--glass-border)",
-              cursor: "pointer",
-              borderRadius: 999,
-              padding: "8px 16px",
-              color: "var(--text)",
-              background: active ? "rgba(255,255,255,0.3)" : "var(--glass-bg)",
-              backdropFilter: "blur(12px)",
-              fontSize: 14,
-            }}
+            className={`chip${active ? " is-active" : ""}`}
           >
-            {it.label}
+            {t(it.key)}
           </button>
         );
       })}

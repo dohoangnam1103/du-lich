@@ -9,6 +9,14 @@ vi.mock("@/db", () => ({
     query: {
       posts: { findMany: vi.fn().mockResolvedValue([]) },
     },
+    // communityRatings() uses select().from().where().groupBy()
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          groupBy: vi.fn().mockResolvedValue([]),
+        })),
+      })),
+    })),
   },
 }));
 
@@ -53,5 +61,23 @@ describe("GET /api/places/nearby", () => {
     mockedSearch.mockRejectedValue(new Error("boom"));
     const res = await GET(makeRequest("lat=10&lng=106&vehicle=walk&category=food"));
     expect(res.status).toBe(500);
+  });
+
+  it("widens the radius when the base radius is empty", async () => {
+    mockedSearch
+      .mockResolvedValueOnce([]) // 1000 m (walk base) -> empty
+      .mockResolvedValueOnce([]) // 3000 m -> empty
+      .mockResolvedValueOnce([
+        { placeId: "p1", name: "A", lat: 10, lng: 106, distanceMeters: 8000 },
+      ]); // 9000 m -> hit
+    const res = await GET(makeRequest("lat=10&lng=106&vehicle=walk&category=food"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.places).toHaveLength(1);
+    expect(body.expanded).toBe(true);
+    expect(body.radiusMeters).toBe(9000);
+    expect(mockedSearch.mock.calls.map((c) => c[0].radiusMeters)).toEqual([
+      1000, 3000, 9000,
+    ]);
   });
 });

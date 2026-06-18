@@ -22,6 +22,20 @@
       "when": 1781537321234,
       "tag": "0002_pale_liz_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781803000838,
+      "tag": "0003_exotic_wallow",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781805969980,
+      "tag": "0004_chief_brood",
+      "breakpoints": true
     }
   ]
 }

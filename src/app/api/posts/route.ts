@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { posts, postMedia } from "@/db/schema";
-import { desc, lt } from "drizzle-orm";
+import { posts, postMedia, follows } from "@/db/schema";
+import { desc, lt, and, inArray, eq } from "drizzle-orm";
+import { auth } from "@/auth";
 import { requireUser, UnauthorizedError } from "@/lib/session";
 import { postSchema } from "@/lib/validation";
 
@@ -9,7 +10,30 @@ const PAGE = 10;
 
 export async function GET(req: NextRequest) {
   const cursor = req.nextUrl.searchParams.get("cursor"); // ISO date of last seen
-  const where = cursor ? lt(posts.createdAt, new Date(cursor)) : undefined;
+  const followingOnly = req.nextUrl.searchParams.get("following") === "1";
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  const conditions = [];
+  if (cursor) conditions.push(lt(posts.createdAt, new Date(cursor)));
+
+  if (followingOnly) {
+    if (!currentUserId) {
+      return NextResponse.json({ posts: [], nextCursor: null });
+    }
+    const followed = await db
+      .select({ id: follows.followingId })
+      .from(follows)
+      .where(eq(follows.followerId, currentUserId));
+    const ids = followed.map((f) => f.id);
+    if (ids.length === 0) {
+      return NextResponse.json({ posts: [], nextCursor: null });
+    }
+    conditions.push(inArray(posts.userId, ids));
+  }
+
+  const where = conditions.length ? and(...conditions) : undefined;
+
   const rows = await db.query.posts.findMany({
     where,
     orderBy: [desc(posts.createdAt)],
@@ -17,10 +41,22 @@ export async function GET(req: NextRequest) {
     with: {
       media: { orderBy: (m, { asc }) => [asc(m.position)] },
       user: { columns: { id: true, displayName: true, avatarUrl: true } },
+      likes: { columns: { userId: true } },
     },
   });
   const hasMore = rows.length > PAGE;
-  const page = rows.slice(0, PAGE);
+  const page = rows.slice(0, PAGE).map((p) => {
+    const likes = p.likes ?? [];
+    const { likes: _likes, ...rest } = p;
+    void _likes;
+    return {
+      ...rest,
+      likeCount: likes.length,
+      liked: currentUserId
+        ? likes.some((l) => l.userId === currentUserId)
+        : false,
+    };
+  });
   const nextCursor = hasMore
     ? page[page.length - 1].createdAt.toISOString()
     : null;

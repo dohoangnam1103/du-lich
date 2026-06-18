@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { comments } from "@/db/schema";
+import { comments, posts } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { requireUser, UnauthorizedError } from "@/lib/session";
 import { commentSchema } from "@/lib/validation";
+import { notify } from "@/lib/notify";
 
 export async function POST(
   req: Request,
@@ -19,6 +21,14 @@ export async function POST(
       .insert(comments)
       .values({ postId, userId: user.id, body: parsed.data.body })
       .returning();
+
+    const post = await db.query.posts.findFirst({
+      where: eq(posts.id, postId),
+      columns: { userId: true },
+    });
+    if (post) {
+      await notify({ userId: post.userId, actorId: user.id, type: "comment", postId });
+    }
     return NextResponse.json({ id: c.id }, { status: 201 });
   } catch (e) {
     if (e instanceof UnauthorizedError) {

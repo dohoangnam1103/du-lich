@@ -162,6 +162,122 @@ async function fetchWikipediaSummary(
   }
 }
 
+// Builds a Wikimedia Commons image URL from a raw file name (P18 / image tag).
+function commonsFileUrl(fileName: string, width = WIKI_THUMB_SIZE): string {
+  return (
+    `https://commons.wikimedia.org/wiki/Special:FilePath/` +
+    `${encodeURIComponent(fileName.replace(/^File:/i, ""))}?width=${width}`
+  );
+}
+
+interface WikidataEntity {
+  claims?: Record<string, { mainsnak?: { datavalue?: { value?: unknown } } }[]>;
+  sitelinks?: Record<string, { title?: string }>;
+}
+
+function wikidataClaimString(entity: WikidataEntity, prop: string): string | undefined {
+  const value = entity.claims?.[prop]?.[0]?.mainsnak?.datavalue?.value;
+  return typeof value === "string" ? value : undefined;
+}
+
+// Picks a Wikipedia sitelink (Vietnamese first, then English) and returns it as
+// a raw "lang:title" tag compatible with the Wikipedia helpers above.
+function wikidataWikipediaTag(entity: WikidataEntity): string | undefined {
+  const vi = entity.sitelinks?.viwiki?.title;
+  if (vi) return `vi:${vi}`;
+  const en = entity.sitelinks?.enwiki?.title;
+  if (en) return `en:${en}`;
+  return undefined;
+}
+
+// Fetches Wikidata entities by QID (batched, up to 50 per request) and returns
+// the image (P18) per QID. Best-effort: skips on any failure.
+async function fetchWikidataImages(
+  qids: string[],
+  fetchImpl: FetchImpl,
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const unique = [...new Set(qids)];
+  for (let i = 0; i < unique.length; i += 50) {
+    const batch = unique.slice(i, i + 50);
+    const url =
+      `https://www.wikidata.org/w/api.php` +
+      `?action=wbgetentities&format=json&origin=*&props=claims` +
+      `&ids=${encodeURIComponent(batch.join("|"))}`;
+    try {
+      const res = await fetchImpl(url);
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        entities?: Record<string, WikidataEntity>;
+      };
+      for (const [qid, entity] of Object.entries(data.entities ?? {})) {
+        const file = wikidataClaimString(entity, "P18");
+        if (file) result.set(qid, commonsFileUrl(file));
+      }
+    } catch {
+      // Wikidata is best-effort; skip on failure.
+    }
+  }
+  return result;
+}
+
+// Resolves a single Wikidata entity into an image, official website and a
+// Wikipedia "lang:title" tag (for fetching a description). Best-effort.
+async function fetchWikidataInfo(
+  qid: string,
+  fetchImpl: FetchImpl,
+): Promise<{ image?: string; website?: string; wikipediaTag?: string }> {
+  const url =
+    `https://www.wikidata.org/w/api.php` +
+    `?action=wbgetentities&format=json&origin=*&props=claims|sitelinks` +
+    `&ids=${encodeURIComponent(qid)}`;
+  try {
+    const res = await fetchImpl(url);
+    if (!res.ok) return {};
+    const data = (await res.json()) as {
+      entities?: Record<string, WikidataEntity>;
+    };
+    const entity = data.entities?.[qid];
+    if (!entity) return {};
+    const file = wikidataClaimString(entity, "P18");
+    return {
+      image: file ? commonsFileUrl(file) : undefined,
+      website: wikidataClaimString(entity, "P856"),
+      wikipediaTag: wikidataWikipediaTag(entity),
+    };
+  } catch {
+    return {};
+  }
+}
+
+// Reads the extra OSM contact/attribute tags shared by list and detail views.
+function buildContactFields(tags: Record<string, string>): {
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  cuisine?: string;
+  facebook?: string;
+} {
+  const phone = tags.phone || tags["contact:phone"] || tags["contact:mobile"];
+  const website = tags.website || tags["contact:website"] || tags.url;
+  const facebook = tags["contact:facebook"] || tags.facebook;
+  return {
+    phone: phone || undefined,
+    website: website || undefined,
+    openingHours: tags.opening_hours || undefined,
+    cuisine: tags.cuisine || undefined,
+    facebook: facebook || undefined,
+  };
+}
+
+// Returns a usable image URL from direct OSM tags (image / wikimedia_commons).
+function osmTagImage(tags: Record<string, string>): string | undefined {
+  if (tags.image && /^https?:\/\//i.test(tags.image)) return tags.image;
+  const commons = tags.wikimedia_commons;
+  if (commons && /^File:/i.test(commons)) return commonsFileUrl(commons);
+  return undefined;
+}
+
 function buildNearbyQuery(params: NearbyParams): string {
   const clauses = params.tagFilters
     .map(
@@ -205,6 +321,7 @@ export async function searchNearby(
       lat,
       lng,
       distanceMeters: haversineMeters(params.lat, params.lng, lat, lng),
+      openingHours: tags.opening_hours || undefined,
     };
   });
 
@@ -222,6 +339,140 @@ export async function searchNearby(
     });
   }
 
+  // Fallback 1: direct OSM image / wikimedia_commons tags.
+  elements.forEach((el, i) => {
+    if (!places[i].imageUrl) {
+      const img = osmTagImage(el.tags ?? {});
+      if (img) places[i].imageUrl = img;
+    }
+  });
+
+  // Fallback 2: Wikidata image (P18) for POIs still without a thumbnail. Many
+  // VN places carry a `wikidata` tag even when they lack a `wikipedia` one.
+  const wikidataIndex = elements
+    .map((el, i) => ({ qid: el.tags?.wikidata, i }))
+    .filter((e): e is { qid: string; i: number } => !!e.qid && !places[e.i].imageUrl);
+  if (wikidataIndex.length) {
+    const images = await fetchWikidataImages(
+      wikidataIndex.map((e) => e.qid),
+      fetchImpl,
+    );
+    for (const { qid, i } of wikidataIndex) {
+      const url = images.get(qid);
+      if (url) places[i].imageUrl = url;
+    }
+  }
+
+  places.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
+  return places;
+}
+
+// Enriches places (in place) with thumbnails from Wikipedia, then direct OSM
+// image tags, then Wikidata images. `elements` must align by index with
+// `places`. Shared by searchNearby and searchByName.
+async function enrichPlaceImages(
+  places: Place[],
+  elements: OverpassElement[],
+  fetchImpl: FetchImpl,
+): Promise<void> {
+  const wikiTags = elements
+    .map((el) => el.tags?.wikipedia)
+    .filter((t): t is string => !!t);
+  if (wikiTags.length) {
+    const images = await fetchWikipediaImages(wikiTags, fetchImpl);
+    elements.forEach((el, i) => {
+      const tag = el.tags?.wikipedia;
+      if (tag) {
+        const url = images.get(tag);
+        if (url) places[i].imageUrl = url;
+      }
+    });
+  }
+
+  elements.forEach((el, i) => {
+    if (!places[i].imageUrl) {
+      const img = osmTagImage(el.tags ?? {});
+      if (img) places[i].imageUrl = img;
+    }
+  });
+
+  const wikidataIndex = elements
+    .map((el, i) => ({ qid: el.tags?.wikidata, i }))
+    .filter((e): e is { qid: string; i: number } => !!e.qid && !places[e.i].imageUrl);
+  if (wikidataIndex.length) {
+    const images = await fetchWikidataImages(
+      wikidataIndex.map((e) => e.qid),
+      fetchImpl,
+    );
+    for (const { qid, i } of wikidataIndex) {
+      const url = images.get(qid);
+      if (url) places[i].imageUrl = url;
+    }
+  }
+}
+
+interface NameSearchParams {
+  query: string;
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  maxResults?: number;
+}
+
+// Escapes a user string for safe inclusion inside an Overpass regex literal.
+function sanitizeOverpassRegex(q: string): string {
+  return q.replace(/[\\"]/g, "").replace(/[.*+?^${}()|[\]]/g, "\\$&").trim();
+}
+
+function buildNameQuery(params: NameSearchParams): string {
+  const q = sanitizeOverpassRegex(params.query);
+  const { radiusMeters, lat, lng } = params;
+  return (
+    `[out:json][timeout:25];\n(\n` +
+    `  nwr["name"~"${q}",i](around:${radiusMeters},${lat},${lng});\n` +
+    `);\nout center ${params.maxResults ?? 40};`
+  );
+}
+
+// Searches POIs by name within a radius (e.g. "Highlands", "Phở Hòa").
+export async function searchByName(
+  params: NameSearchParams,
+  options: ClientOptions = {},
+): Promise<Place[]> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const overpassUrl = options.overpassUrl ?? DEFAULT_OVERPASS_URL;
+  if (sanitizeOverpassRegex(params.query).length < 2) return [];
+
+  const res = await fetchImpl(overpassUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": OVERPASS_USER_AGENT,
+    },
+    body: `data=${encodeURIComponent(buildNameQuery(params))}`,
+  });
+  if (!res.ok) {
+    throw new Error(`Overpass name search failed: ${res.status}`);
+  }
+
+  const data = (await res.json()) as OverpassResponse;
+  const elements = (data.elements ?? []).filter((el) => el.tags?.name);
+
+  const places: Place[] = elements.map((el) => {
+    const { lat, lng } = elementCoords(el);
+    const tags = el.tags ?? {};
+    return {
+      placeId: `${el.type}/${el.id}`,
+      name: tags.name,
+      address: buildAddress(tags),
+      lat,
+      lng,
+      distanceMeters: haversineMeters(params.lat, params.lng, lat, lng),
+      openingHours: tags.opening_hours || undefined,
+    };
+  });
+
+  await enrichPlaceImages(places, elements, fetchImpl);
   places.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
   return places;
 }
@@ -268,15 +519,39 @@ export async function getPlaceDetail(
 
   const { lat, lng } = elementCoords(el);
   const tags = el.tags ?? {};
+  const contact = buildContactFields(tags);
 
   const imageUrls: string[] = [];
   let description: string | undefined;
   let wikiUrl: string | undefined;
+  let website = contact.website;
+
   if (tags.wikipedia) {
+    // Primary source: the OSM wikipedia tag.
     const summary = await fetchWikipediaSummary(tags.wikipedia, fetchImpl);
     if (summary.image) imageUrls.push(summary.image);
     description = summary.description;
     wikiUrl = summary.wikiUrl;
+  } else if (tags.wikidata) {
+    // Fallback: resolve via Wikidata (image P18, official site P856, and a
+    // Wikipedia sitelink to pull a description from).
+    const info = await fetchWikidataInfo(tags.wikidata, fetchImpl);
+    if (info.image) imageUrls.push(info.image);
+    if (!website && info.website) website = info.website;
+    if (info.wikipediaTag) {
+      const summary = await fetchWikipediaSummary(info.wikipediaTag, fetchImpl);
+      if (summary.image && !imageUrls.includes(summary.image)) {
+        imageUrls.push(summary.image);
+      }
+      description = summary.description;
+      wikiUrl = summary.wikiUrl;
+    }
+  }
+
+  // Last-resort image: direct OSM image / wikimedia_commons tags.
+  if (imageUrls.length === 0) {
+    const img = osmTagImage(tags);
+    if (img) imageUrls.push(img);
   }
 
   return {
@@ -289,5 +564,10 @@ export async function getPlaceDetail(
     imageUrls,
     description,
     wikiUrl,
+    phone: contact.phone,
+    website,
+    openingHours: contact.openingHours,
+    cuisine: contact.cuisine,
+    facebook: contact.facebook,
   };
 }

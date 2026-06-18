@@ -22,6 +22,14 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1).max(1000),
 });
 
+export const postUpdateSchema = z.object({
+  caption: z.string().max(2000),
+});
+
+export const profileUpdateSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+});
+
 export const reviewSchema = z.object({
   placeId: z.string().min(1),
   rating: z.number().int().min(1).max(5),
@@ -31,4 +39,18 @@ export const reviewSchema = z.object({
 
 export const favoriteSchema = z.object({
   placeId: z.string().min(1),
+  placeName: z.string().max(300).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+});
+
+export const collectionCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const collectionItemSchema = z.object({
+  placeId: z.string().min(1),
+  placeName: z.string().max(300).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });

@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
+import { useT } from "@/components/I18nProvider";
 
 export function ReviewForm({ placeId }: { placeId: string }) {
   const router = useRouter();
   const { data: session } = useSession();
+  const t = useT();
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<{ url: string; type: "image" | "video" }[]>([]);
@@ -45,7 +47,7 @@ export function ReviewForm({ placeId }: { placeId: string }) {
       return;
     }
     if (rating < 1) {
-      setError("Chọn số sao (1–5)");
+      setError(t("review.pickStars"));
       return;
     }
     setBusy(true);
@@ -64,7 +66,7 @@ export function ReviewForm({ placeId }: { placeId: string }) {
         return;
       }
       const b = await res.json().catch(() => ({}));
-      setError(typeof b.error === "string" ? b.error : "Gửi review thất bại");
+      setError(typeof b.error === "string" ? b.error : t("review.failed"));
     } finally {
       setBusy(false);
     }
@@ -95,19 +97,13 @@ export function ReviewForm({ placeId }: { placeId: string }) {
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Cảm nhận của bạn (tùy chọn)"
+        placeholder={t("review.placeholder")}
         rows={3}
-        style={{
-          padding: "10px 12px",
-          borderRadius: 16,
-          border: "1px solid var(--glass-border)",
-          background: "rgba(255,255,255,0.1)",
-          color: "var(--text)",
-          resize: "vertical",
-        }}
+        className="field"
+        style={{ resize: "vertical" }}
       />
       <label className="glass-btn" style={{ textAlign: "center", cursor: "pointer" }}>
-        {uploading ? "Đang tải lên..." : "+ Thêm ảnh"}
+        {uploading ? t("review.uploading") : t("review.addPhoto")}
         <input
           type="file"
           accept="image/*"
@@ -129,9 +125,9 @@ export function ReviewForm({ placeId }: { placeId: string }) {
           ))}
         </div>
       )}
-      {error && <div style={{ color: "#ffb4b4", fontSize: 14 }}>{error}</div>}
-      <button type="submit" className="glass-btn" disabled={busy || uploading}>
-        {busy ? "Đang gửi..." : "Gửi review"}
+      {error && <div style={{ color: "#e0466e", fontSize: 14, fontWeight: 600 }}>{error}</div>}
+      <button type="submit" className="glass-btn glass-btn-primary" disabled={busy || uploading}>
+        {busy ? t("review.submitting") : t("review.submit")}
       </button>
     </form>
   );

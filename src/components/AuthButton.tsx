@@ -1,8 +1,10 @@
 "use client";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useT } from "@/components/I18nProvider";
 
 export function AuthButton() {
   const { data: session, status } = useSession();
+  const t = useT();
   if (status === "loading") return null;
   if (session?.user) {
     return (
@@ -35,13 +37,13 @@ export function AuthButton() {
             {(session.user.name ?? "?").charAt(0).toUpperCase()}
           </span>
         )}
-        <span style={{ fontSize: 14 }}>Thoát</span>
+        <span style={{ fontSize: 14 }}>{t("auth.logout")}</span>
       </button>
     );
   }
   return (
-    <button className="glass-btn" onClick={() => signIn("google")}>
-      Đăng nhập
+    <button className="glass-btn glass-btn-primary" onClick={() => signIn("google")}>
+      {t("auth.login")}
     </button>
   );
 }

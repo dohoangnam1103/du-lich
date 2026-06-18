@@ -4,11 +4,29 @@ import { db } from "@/db";
 import { posts } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { radiusForVehicle, VEHICLES, type Vehicle } from "@/lib/vehicle";
+import { communityRatings } from "@/lib/places/ratings";
+import { cached, coarse } from "@/lib/cache";
 import {
   osmTagsForCategory,
   CATEGORIES,
   type Category,
 } from "@/lib/places/types";
+
+// Hard cap so an empty area never triggers an unbounded country-wide query.
+const MAX_RADIUS_METERS = 50000;
+
+// Builds an increasing list of radii starting from the vehicle's base radius,
+// tripling each step up to MAX_RADIUS_METERS. Used to progressively widen the
+// search when the initial radius yields no results.
+function radiusLadder(base: number): number[] {
+  const ladder = [base];
+  let r = base;
+  while (r < MAX_RADIUS_METERS) {
+    r = Math.min(r * 3, MAX_RADIUS_METERS);
+    ladder.push(r);
+  }
+  return ladder;
+}
 
 // Maps each placeId to the first image from its most recent community post,
 // used as a thumbnail fallback when OSM has no Wikipedia image.
@@ -62,11 +80,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const places = await searchNearby({
-      lat,
-      lng,
-      radiusMeters: radiusForVehicle(vehicle),
-      tagFilters: osmTagsForCategory(category),
+    const baseRadius = radiusForVehicle(vehicle);
+    const tagFilters = osmTagsForCategory(category);
+
+    // Progressively widen the radius until we find something or hit the cap.
+    // Cache the Overpass result set per coarse location + vehicle + category.
+    const cacheKey = `nearby:${coarse(lat)}:${coarse(lng)}:${vehicle}:${category}`;
+    const { places, usedRadius } = await cached(cacheKey, 10 * 60 * 1000, async () => {
+      let found: Awaited<ReturnType<typeof searchNearby>> = [];
+      let radius = baseRadius;
+      for (const radiusMeters of radiusLadder(baseRadius)) {
+        radius = radiusMeters;
+        found = await searchNearby({ lat, lng, radiusMeters, tagFilters });
+        if (found.length > 0) break;
+      }
+      return { places: found, usedRadius: radius };
     });
 
     // Fill thumbnails from community posts for places without a Wikipedia image.
@@ -79,7 +107,21 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ places });
+    // Attach community ratings (average + count) for all returned places.
+    const ratings = await communityRatings(places.map((p) => p.placeId));
+    for (const p of places) {
+      const r = ratings.get(p.placeId);
+      if (r) {
+        p.rating = r.rating;
+        p.ratingCount = r.count;
+      }
+    }
+
+    return NextResponse.json({
+      places,
+      radiusMeters: usedRadius,
+      expanded: usedRadius > baseRadius,
+    });
   } catch {
     return NextResponse.json({ error: "places lookup failed" }, { status: 500 });
   }
