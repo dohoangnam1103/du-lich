@@ -49,74 +49,74 @@ type DetailResponse = {
 
 async function fetchDetail(placeId: string): Promise<DetailResponse | null> {
   try {
-    const place = await getPlaceDetail(placeId);
+    // First batch — everything that only needs the placeId runs in parallel.
+    const [place, userPosts, userReviews, rating, session] = await Promise.all([
+      getPlaceDetail(placeId),
+      db.query.posts.findMany({
+        where: eq(posts.placeId, placeId),
+        orderBy: [desc(posts.createdAt)],
+        limit: 20,
+        with: {
+          media: { orderBy: (m, { asc }) => [asc(m.position)] },
+          user: { columns: { id: true, displayName: true, avatarUrl: true } },
+        },
+      }),
+      db.query.reviews.findMany({
+        where: eq(reviews.placeId, placeId),
+        orderBy: [desc(reviews.createdAt)],
+        with: {
+          media: { orderBy: (m, { asc }) => [asc(m.position)] },
+          user: { columns: { displayName: true, avatarUrl: true } },
+        },
+      }),
+      communityRating(placeId),
+      auth(),
+    ]);
 
-    const userPosts = await db.query.posts.findMany({
-      where: eq(posts.placeId, placeId),
-      orderBy: [desc(posts.createdAt)],
-      limit: 20,
-      with: {
-        media: { orderBy: (m, { asc }) => [asc(m.position)] },
-        user: { columns: { id: true, displayName: true, avatarUrl: true } },
-      },
-    });
+    const currentUserId = session?.user?.id ?? null;
 
-    const userReviews = await db.query.reviews.findMany({
-      where: eq(reviews.placeId, placeId),
-      orderBy: [desc(reviews.createdAt)],
-      with: {
-        media: { orderBy: (m, { asc }) => [asc(m.position)] },
-        user: { columns: { displayName: true, avatarUrl: true } },
-      },
-    });
+    // Second batch — needs the place coords / session; also runs in parallel.
+    const [weather, similar, fav] = await Promise.all([
+      cached(
+        `weather:${coarse(place.lat, 2)}:${coarse(place.lng, 2)}`,
+        30 * 60 * 1000,
+        () => getWeather(place.lat, place.lng),
+      ).catch(() => null),
+      cached(
+        `similar:${coarse(place.lat)}:${coarse(place.lng)}`,
+        10 * 60 * 1000,
+        () =>
+          searchNearby({
+            lat: place.lat,
+            lng: place.lng,
+            radiusMeters: 2000,
+            tagFilters: [
+              ...osmTagsForCategory("food"),
+              ...osmTagsForCategory("cafe"),
+              ...osmTagsForCategory("sightseeing"),
+            ],
+            maxResults: 10,
+          }),
+      ).catch(() => [] as Place[]),
+      currentUserId
+        ? db.query.favorites.findFirst({
+            where: and(
+              eq(favorites.userId, currentUserId),
+              eq(favorites.placeId, placeId),
+            ),
+          })
+        : Promise.resolve(null),
+    ]);
 
-    const rating = await communityRating(placeId);
-
-    // Current weather + a few similar places nearby (both cached, best-effort).
-    const weather = await cached(
-      `weather:${coarse(place.lat, 2)}:${coarse(place.lng, 2)}`,
-      30 * 60 * 1000,
-      () => getWeather(place.lat, place.lng),
-    ).catch(() => null);
-
-    const similar = await cached(
-      `similar:${coarse(place.lat)}:${coarse(place.lng)}`,
-      10 * 60 * 1000,
-      () =>
-        searchNearby({
-          lat: place.lat,
-          lng: place.lng,
-          radiusMeters: 2000,
-          tagFilters: [
-            ...osmTagsForCategory("food"),
-            ...osmTagsForCategory("cafe"),
-            ...osmTagsForCategory("sightseeing"),
-          ],
-          maxResults: 10,
-        }),
-    ).catch(() => [] as Place[]);
     const similarPlaces = similar
       .filter((p) => p.placeId !== placeId)
       .slice(0, 6);
-
-    const session = await auth();
-    const currentUserId = session?.user?.id ?? null;
-    let isFavorite = false;
-    if (currentUserId) {
-      const fav = await db.query.favorites.findFirst({
-        where: and(
-          eq(favorites.userId, currentUserId),
-          eq(favorites.placeId, placeId),
-        ),
-      });
-      isFavorite = !!fav;
-    }
 
     return {
       place,
       userPosts: userPosts as unknown as FeedPost[],
       userReviews: userReviews as unknown as CommunityReview[],
-      isFavorite,
+      isFavorite: !!fav,
       rating,
       currentUserId,
       weather,
