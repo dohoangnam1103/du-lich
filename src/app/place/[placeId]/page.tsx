@@ -59,6 +59,10 @@ async function fetchDetail(placeId: string): Promise<DetailResponse | null> {
         with: {
           media: { orderBy: (m, { asc }) => [asc(m.position)] },
           user: { columns: { id: true, displayName: true, avatarUrl: true } },
+          comments: {
+            orderBy: (c, { asc }) => [asc(c.createdAt)],
+            with: { user: { columns: { displayName: true, avatarUrl: true } } },
+          },
         },
       }),
       db.query.reviews.findMany({

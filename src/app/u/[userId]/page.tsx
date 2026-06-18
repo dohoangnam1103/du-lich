@@ -41,6 +41,10 @@ export default async function ProfilePage({
       media: { orderBy: (m, { asc }) => [asc(m.position)] },
       user: { columns: { id: true, displayName: true, avatarUrl: true } },
       likes: { columns: { userId: true } },
+      comments: {
+        orderBy: (c, { asc }) => [asc(c.createdAt)],
+        with: { user: { columns: { displayName: true, avatarUrl: true } } },
+      },
     },
   });
 
