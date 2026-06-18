@@ -17,6 +17,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   providers: [Google],
+  // Behind the Cloudflare tunnel the app sees Host=localhost:3001, so Auth.js
+  // must be told to trust the forwarded host. The canonical public URL is
+  // pinned via AUTH_URL in the environment.
+  trustHost: true,
   session: { strategy: "database" },
   callbacks: {
     session({ session, user }) {
