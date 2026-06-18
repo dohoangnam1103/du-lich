@@ -4,6 +4,7 @@ import { collections, collectionItems } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { MapView, type MapMarker } from "@/components/MapView";
 import { getT } from "@/lib/i18n/server";
+import { isUuid } from "@/lib/validation";
 
 // Public, read-only view of a collection. Anyone with the link can view it;
 // no authentication required (this is the "share" target).
@@ -15,9 +16,11 @@ export default async function PublicCollectionPage({
   const { id } = await params;
   const t = await getT();
 
-  const collection = await db.query.collections.findFirst({
-    where: eq(collections.id, id),
-  });
+  const collection = isUuid(id)
+    ? await db.query.collections.findFirst({
+        where: eq(collections.id, id),
+      })
+    : null;
 
   if (!collection) {
     return (

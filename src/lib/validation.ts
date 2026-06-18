@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// True when the string is a valid UUID (defends server pages against malformed
+// route params that would otherwise crash the Postgres query with a 500).
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export const mediaSchema = z.object({
   url: z.string().min(1),
   type: z.enum(["image", "video"]),

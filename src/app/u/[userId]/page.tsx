@@ -7,6 +7,7 @@ import { PostCard, type FeedPost } from "@/components/PostCard";
 import { EditProfile } from "@/components/EditProfile";
 import { FollowButton } from "@/components/FollowButton";
 import { getT } from "@/lib/i18n/server";
+import { isUuid } from "@/lib/validation";
 
 export default async function ProfilePage({
   params,
@@ -16,10 +17,12 @@ export default async function ProfilePage({
   const { userId } = await params;
   const t = await getT();
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-    columns: { id: true, displayName: true, name: true, avatarUrl: true, image: true },
-  });
+  const user = isUuid(userId)
+    ? await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { id: true, displayName: true, name: true, avatarUrl: true, image: true },
+      })
+    : null;
 
   if (!user) {
     return (
