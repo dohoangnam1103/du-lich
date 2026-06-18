@@ -7,6 +7,7 @@ import { CategoryChips } from "@/components/CategoryChips";
 import { PlaceCard } from "@/components/PlaceCard";
 import { LocationSearch } from "@/components/LocationSearch";
 import { MapView, type MapMarker } from "@/components/MapView";
+import { PlaceCardSkeletonList } from "@/components/PlaceCardSkeleton";
 import type { Vehicle } from "@/lib/vehicle";
 import type { Category, Place } from "@/lib/places/types";
 import { isOpenNow } from "@/lib/openingHours";
@@ -152,6 +153,9 @@ export default function Home() {
   }, [visible, coords]);
 
   const busy = searchActive ? searching : loading;
+  // Waiting for geolocation to resolve (no coords yet, no error yet).
+  const locating = !coords && !geoError && !searchActive;
+  const showSkeleton = busy || locating;
 
   return (
     <main style={{ maxWidth: 520, margin: "0 auto", padding: 16 }}>
@@ -293,20 +297,35 @@ export default function Home() {
         </section>
       )}
 
-      {busy && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-dim)", padding: "8px 0" }}>
-          <span className="spinner" />
-          {searchActive ? t("common.searching") : t("common.loading")}
-        </div>
+      {showSkeleton && (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: "var(--text-dim)",
+              padding: "8px 0 4px",
+            }}
+          >
+            <span className="spinner" />
+            {locating
+              ? t("home.locating")
+              : searchActive
+                ? t("common.searching")
+                : t("common.loading")}
+          </div>
+          <PlaceCardSkeletonList count={5} />
+        </>
       )}
 
-      {!busy && !searchActive && expanded && places.length > 0 && radiusMeters && (
+      {!showSkeleton && !searchActive && expanded && places.length > 0 && radiusMeters && (
         <p style={{ color: "var(--text-dim)", marginBottom: 8 }}>
           {t("home.expanded")} {(radiusMeters / 1000).toFixed(0)} km.
         </p>
       )}
 
-      {!busy && coords && visible.length === 0 && (
+      {!showSkeleton && coords && visible.length === 0 && (
         <p style={{ color: "var(--text-dim)" }}>
           {searchActive
             ? `${t("home.emptySearch")} "${nameQuery.trim()}".`
@@ -318,9 +337,9 @@ export default function Home() {
         </p>
       )}
 
-      {!busy && view === "map" && visible.length > 0 && <MapView markers={markers} />}
+      {!showSkeleton && view === "map" && visible.length > 0 && <MapView markers={markers} />}
 
-      {!busy &&
+      {!showSkeleton &&
         view === "list" &&
         visible.map((p) => (
           <PlaceCard

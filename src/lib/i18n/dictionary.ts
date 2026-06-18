@@ -46,6 +46,7 @@ export const dict: Record<string, Record<Lang, string>> = {
   "home.popular": { vi: "🔥 Phổ biến trong cộng đồng", en: "🔥 Popular in the community" },
   "home.recent": { vi: "Xem gần đây", en: "Recently viewed" },
   "home.geoUnsupported": { vi: "Trình duyệt không hỗ trợ định vị. Hãy tìm theo khu vực bên dưới.", en: "Your browser doesn't support geolocation. Search an area below." },
+  "home.locating": { vi: "Đang định vị bạn…", en: "Locating you…" },
   "home.geoDenied": { vi: "Chưa có quyền vị trí. Bạn vẫn có thể tìm theo tên khu vực bên dưới.", en: "Location permission denied. You can still search by area below." },
   "home.geoDeniedShort": { vi: "Chưa có quyền vị trí.", en: "Location permission denied." },
   "home.expanded": { vi: "Không có kết quả gần bạn nên đã mở rộng phạm vi tìm kiếm đến", en: "No results nearby, so the search radius was widened to" },
